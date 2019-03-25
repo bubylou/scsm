@@ -1,0 +1,2 @@
+# scsm
+SteamCMD Server Manager

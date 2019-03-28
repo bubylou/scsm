@@ -1,0 +1,22 @@
+dist: xenial
+language: python
+python:
+- '3.6'
+- '3.7'
+sudo: false
+addons:
+  apt:
+    packages:
+    - screen
+    - lib32gcc1
+install:
+- pip install -r requirements.txt
+- pip install tox-travis
+- pip install -e .
+script:
+- flake8
+- tox
+after_success:
+- codecov
+notifications:
+  email: false

@@ -25,10 +25,10 @@ pip install -e .
 Run code style checks:
 
 ```
-flake8
+tox -e lint
 ```
 
-Run tests:
+Run tests which also does a code style check:
 
 ```
 tox

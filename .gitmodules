@@ -1,0 +1,3 @@
+[submodule "scsm/data"]
+	path = scsm/data
+	url = https://github.com/bubylou/scsm-apps

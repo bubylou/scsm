@@ -16,7 +16,7 @@
 Install SCSM for development:
 
 ```
-git clone https://github.com/bubylou/scsm.git
+git clone --recurse-submodules https://github.com/bubylou/scsm.git
 cd scsm
 pip install -r requirements.txt
 pip install -e .
@@ -25,10 +25,10 @@ pip install -e .
 Run code style checks:
 
 ```
-flake8
+tox -e lint
 ```
 
-Run tests:
+Run tests which also does a code style check:
 
 ```
 tox

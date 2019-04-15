@@ -1,16 +1,17 @@
 import os
-from time import sleep
+from pathlib import Path
 import pytest
+from time import sleep
 
 from scsm.core import App, Index, Server, SteamCMD
 from scsm.config import Config
 
 
-APP_DIR = os.path.expanduser('~/.local/share/scsm/apps')
+APP_DIR = Path('~/.local/share/scsm/apps').expanduser()
 APP_ID = 232370
 APP_ID_FAIL = 380840
 APP_NAME = 'hl2dm'
-BACKUP_DIR = os.path.expanduser('~/.local/share/scsm/backups')
+BACKUP_DIR = Path('~/.local/share/scsm/backups').expanduser()
 
 Config.create()
 Index.update()
@@ -62,17 +63,13 @@ class TestApp():
         assert app.build_id_local == 0
 
     def test_backup_gz(self, app):
-        if not os.path.exists(app.backup_dir):
-            os.makedirs(app.backup_dir)
-
+        app.backup_dir.mkdir(parents=True, exist_ok=True)
         backups = os.listdir(app.backup_dir)
         app.backup(compression='gz')
         assert len(os.listdir(app.backup_dir)) > len(backups)
 
     def test_backup_tar(self, app):
-        if not os.path.exists(app.backup_dir):
-            os.makedirs(app.backup_dir)
-
+        app.backup_dir.mkdir(parents=True, exist_ok=True)
         backups = os.listdir(app.backup_dir)
         app.backup(compression=None)
         assert len(os.listdir(app.backup_dir)) > len(backups)
@@ -99,9 +96,9 @@ class TestIndex():
         assert len(list(Index.list_all())) > 0
 
     def test_update(self):
-        os.remove(Index.f)
+        Index.f.unlink()
         Index.update()
-        assert os.path.isfile(Index.f)
+        assert Index.f.is_file()
 
     @pytest.mark.parametrize('app,result', [
         (APP_ID, (APP_ID, None, None)),
@@ -199,7 +196,7 @@ class TestSteamCMD():
         assert steamcmd.installed is True
 
     def test_app_update(self, steamcmd):
-        d = os.path.join(APP_DIR, str(APP_ID), APP_NAME)
+        d = Path(APP_DIR, str(APP_ID), APP_NAME)
         exit_code, text = steamcmd.app_update(APP_ID, d)
         assert exit_code == 0
 

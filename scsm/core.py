@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tarfile
 from datetime import datetime
+from pathlib import Path
 from zipfile import ZipFile
 from urllib.request import urlretrieve
 
@@ -18,15 +19,15 @@ class App():
     def __init__(self, app, app_dir, backup_dir=None, platform=None):
         self.app_id, self.app_name, self.server_name = Index.search(app)
 
-        # app_id is required, if None raise AttributeError
+        # app_id is required, if None raise FileNotFoundError
         f = f'{self.app_id}.yaml'
-        self.config_f = os.path.join(Config.data_dir, 'apps', f)
+        self.config_f = Path(Config.data_dir, 'apps', f)
         self.config_is_default = True
 
         # check for user app config file
-        d = os.path.join(Config.config_dir, 'apps')
-        if os.path.exists(d) and os.path.isfile(os.path.join(d, f)):
-            self.config_f = os.path.join(d, f)
+        d = Path(Config.config_dir, 'apps')
+        if d.exists() and Path(d, f).is_file():
+            self.config_f = Path(d, f)
             self.config_is_default = False
 
         with open(self.config_f, 'r') as f:
@@ -46,10 +47,9 @@ class App():
             self.start_options = data['servers'][self.server_name]['start']
             self.stop_options = data['servers'][self.server_name]['stop']
 
-        self.app_dir = os.path.join(app_dir, str(self.app_id), self.app_name)
+        self.app_dir = Path(app_dir, str(self.app_id), self.app_name)
         if backup_dir:
-            self.backup_dir = os.path.join(backup_dir, str(self.app_id),
-                                           self.app_name)
+            self.backup_dir = Path(backup_dir, str(self.app_id), self.app_name)
 
         self.beta, self.beta_password, self.app_config = None, None, None
         try:
@@ -76,17 +76,16 @@ class App():
             self.exe = data['exec']
 
             if 'directory' in data.keys():
-                self.exec_dir = os.path.join(self.app_dir, data['directory'])
+                self.exec_dir = Path(self.app_dir, data['directory'])
             else:
                 self.exec_dir = self.app_dir
 
     @property
     def build_id_local(self):
         '''Return the app's local build id'''
-        f = os.path.join(self.app_dir, 'steamapps',
-                         f'appmanifest_{self.app_id}.acf')
+        f = Path(self.app_dir, 'steamapps', f'appmanifest_{self.app_id}.acf')
 
-        if os.path.isfile(f):
+        if f.is_file():
             with open(f, 'r') as app_manifest:
                 data = vdf.load(app_manifest)
             return int(data['AppState']['buildid'])
@@ -107,8 +106,8 @@ class App():
     @property
     def installed(self):
         '''Return True if app is installed'''
-        if os.path.exists(self.app_dir):
-            for d in os.listdir(self.app_dir):
+        if self.app_dir.exists():
+            for d in self.app_dir.iterdir():
                 # if only steamapps directory is found
                 # then it did not completely install
                 if d != 'steamapps':
@@ -132,17 +131,17 @@ class App():
             extension = f'.tar.{compression}'
 
         date = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        f = os.path.join(self.backup_dir, f'{date}{extension}')
+        f = Path(self.backup_dir, f'{date}{extension}')
 
         with tarfile.open(f, f'w:{compression}') as tar:
-            os.chdir(os.path.split(self.app_dir)[0])
+            os.chdir(self.app_dir.parent)
             tar.add(self.app_name)
 
     def copy_config(self):
         '''Copy default app config file to config_dir'''
         f = f'{self.app_id}.yaml'
-        shutil.copyfile(os.path.join(Config.data_dir, 'apps', f),
-                        os.path.join(Config.config_dir, 'apps', f))
+        shutil.copyfile(Path(Config.data_dir, 'apps', f),
+                        Path(Config.config_dir, 'apps', f))
         self.config_is_default = False
 
     def remove(self):
@@ -151,14 +150,14 @@ class App():
 
         # if this app is the only one installed for that app_id
         # remove the now empty app_id directory as well
-        app_dir = os.path.split(self.app_dir)[0]
+        app_dir = self.app_dir.parent
         if not os.listdir(app_dir):
-            shutil.rmtree(app_dir)
+            app_dir.rmdir()
 
     def restore(self, backup):
         '''Restore specified backup file'''
-        with tarfile.open(os.path.join(self.backup_dir, backup)) as tar:
-            tar.extractall(os.path.split(self.app_dir)[0])
+        with tarfile.open(Path(self.backup_dir, backup)) as tar:
+            tar.extractall(self.app_dir.parent)
 
         if self.config_is_default:
             self.copy_config()
@@ -166,7 +165,7 @@ class App():
     def update(self, username='anonymous', password='',
                steam_guard='', validate=False, verbose=False):
         '''Update app using steamcmd'''
-        new_install = not os.path.exists(self.app_dir)
+        new_install = not self.app_dir.exists()
 
         if self.config_is_default:
             self.copy_config()
@@ -187,32 +186,33 @@ class App():
 
 class Index():
     '''Used for working with app_index.yaml'''
-    f = os.path.join(Config.config_dir, 'app_index.yaml')
+    f = Path(Config.config_dir, 'app_index.yaml')
 
     @staticmethod
     def config_dirs():
         '''Get app config dirs'''
         for d in Config.data_dir, Config.config_dir:
-            d = os.path.join(d, 'apps')
-            if os.path.exists(d):
+            d = Path(d, 'apps')
+            if d.exists():
                 yield d
 
     @staticmethod
     def list(directory):
         '''Return appid or app_name if not only app for app_id'''
-        if not os.path.exists(directory):
+        directory = Path(directory)
+        if not directory.exists():
             return
 
         with open(Index.f, 'r') as f:
             yaml = YAML(typ='safe')
             data = yaml.load(f)
 
-        for app_id in os.listdir(directory):
-            if len(data[int(app_id)].keys()) > 1:
-                for app_name in os.listdir(os.path.join(directory, app_id)):
-                    yield app_name
+        for app_id in directory.iterdir():
+            if len(data[int(app_id.name)].keys()) > 1:
+                for app_name in Path(directory, app_id).iterdir():
+                    yield app_name.name
             else:
-                yield app_id
+                yield app_id.name
 
     @staticmethod
     def list_all():
@@ -260,9 +260,9 @@ class Index():
         '''Update index with latst app config files'''
         app_index = {}
         for d in Index.config_dirs():
-            for f in os.listdir(d):
-                if f.endswith('.yaml'):
-                    with open(os.path.join(d, f), 'r') as config_f:
+            for f in d.iterdir():
+                if Path(f).suffix == '.yaml':
+                    with open(Path(d, f), 'r') as config_f:
                         yaml = YAML(typ='safe')
                         data = yaml.load(config_f)
 
@@ -349,18 +349,18 @@ class SteamCMD():
             self.exe = 'steamcmd'
         else:
             if pf.system() != 'Windows':
-                self.directory = os.path.expanduser('~/.local/share/scsm/steamcmd')
-                self.exe = os.path.join(self.directory, 'steamcmd.sh')
+                self.directory = Path('~/.local/share/scsm/steamcmd').expanduser()
+                self.exe = Path(self.directory, 'steamcmd.sh')
             else:
-                self.directory = os.path.join(os.getenv('APPDATA'), 'scsm', 'steamcmd')
-                self.exe = os.path.join(self.directory, 'self.exe')
+                self.directory = Path(os.getenv('APPDATA'), 'scsm', 'steamcmd')
+                self.exe = Path(self.directory, 'self.exe')
 
     @property
     def installed(self):
         '''Return True if installed'''
         if self.exe == 'steamcmd':
             return True
-        return os.path.exists(self.directory) and os.path.isfile(self.exe)
+        return self.directory.exists() and self.exe.is_file()
 
     def app_update(self, app_id, app_dir, beta=None, beta_password=None,
                    config=None, platform=None, validate=False,
@@ -446,16 +446,14 @@ class SteamCMD():
         base_url = 'https://steamcdn-a.akamaihd.net/client/installer'
         url = f'{base_url}/{f}'
 
-        if not os.path.exists(self.directory):
-            os.makedirs(self.directory)
-
-        urlretrieve(url, os.path.join(self.directory, f))
+        self.directory.mkdir(parents=True, exist_ok=True)
+        urlretrieve(url, Path(self.directory, f))
 
         if pf.system() != 'Windows':
-            with tarfile.open(os.path.join(self.directory, f)) as tar:
+            with tarfile.open(Path(self.directory, f)) as tar:
                 tar.extractall(self.directory)
         else:
-            with ZipFile(os.path.join(self.directory, f)) as zipf:
+            with ZipFile(Path(self.directory, f)) as zipf:
                 zipf.extractall(self.directory)
 
     def license(self, app_id, username='anonymous', password='', steam_guard=''):

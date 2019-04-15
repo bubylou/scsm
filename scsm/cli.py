@@ -4,6 +4,7 @@ import shutil
 import signal
 import sys
 from email.mime.text import MIMEText
+from pathlib import Path
 from smtplib import SMTP
 from time import sleep
 
@@ -42,7 +43,7 @@ def main(ctx):
     signal.signal(signal.SIGINT, signal_handler)
 
     if ctx.invoked_subcommand != 'setup':
-        if not os.path.isfile(Config.config_f):
+        if not Config.config_f.exists():
             click.echo('[ ------ ]')
             message('Error', 'No config file found')
             ctx.forward(setup_cmd)
@@ -90,7 +91,7 @@ def console_cmd(apps):
 
 @main.command(name='edit')
 @click.argument('apps', nargs=-1)
-@click.option('--editor', help='Text editor')
+@click.option('-e', '--editor', help='Text editor')
 def edit_cmd(apps, editor):
     '''Edit config files'''
 
@@ -285,7 +286,7 @@ def setup_cmd(system_wide):
 
     click.echo('[ ------ ]')
 
-    if Config.config_f and os.path.isfile(Config.config_f):
+    if Config.config_f and Config.config_f.exists():
         if not system_wide and Config.system_wide:
             message('Status', 'Creating config files')
             Config.create(system_wide)
@@ -303,8 +304,7 @@ def setup_cmd(system_wide):
         message('Status', 'Configs installed')
 
     for d in Config.app_dir, Config.backup_dir:
-        if not os.path.exists(d):
-            os.makedirs(d)
+        d.mkdir(parents=True, exist_ok=True)
 
 
 @main.command(name='start')
@@ -482,8 +482,7 @@ def backup(a, compression, force):
     elif not force and a.running:
         message('Error', 'Stop server before backup')
     else:
-        if not os.path.exists(a.backup_dir):
-            os.makedirs(a.backup_dir)
+        a.backup_dir.mkdir(parents=True, exist_ok=True)
         backups = os.listdir(a.backup_dir)
         length = len(backups)
 
@@ -492,7 +491,7 @@ def backup(a, compression, force):
             message('Status', 'Removing old backups')
 
             for backup in backups[0:length - Config.max_backups + 1]:
-                os.remove(os.path.join(a.backup_dir, backup))
+                Path(a.backup_dir, backup).unlink()
 
         message('Status', 'Backup started')
         a.backup(compression)
@@ -579,7 +578,7 @@ def remove(a, force):
 def restore(a, force):
     info(a.app_name, a.app_id)
 
-    if not os.path.exists(a.backup_dir) or not os.listdir(a.backup_dir):
+    if not a.backup_dir.exists() or not os.listdir(a.backup_dir):
         message('Error', 'No backups found')
     elif not force and a.running:
         message('Error', 'Stop server before restoring')
@@ -602,8 +601,7 @@ def restore(a, force):
         else:
             backup = backups[0]
 
-        if not os.path.exists(a.app_dir):
-            os.makedirs(a.app_dir)
+        a.app_dir.mkdir(parents=True, exist_ok=True)
         message('Status', 'Restoring')
         a.restore(backup)
         message('Status', 'Restore complete')

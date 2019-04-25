@@ -288,12 +288,12 @@ class Server(App):
     def console(self):
         '''Attach to screen session'''
         cmd = ['screen', '-r', self.session]
-        return subprocess.run(cmd).returncode
+        return subprocess.run(cmd, shell=False).returncode
 
     def kill(self):
         '''Kill screen session'''
         cmd = ['screen', '-S', self.session, '-X', 'quit']
-        subprocess.run(cmd)
+        subprocess.run(cmd, shell=False)
 
     @staticmethod
     def running_check(app_name, server_name=None):
@@ -303,7 +303,7 @@ class Server(App):
         else:
             session = f'{app_name}-.*'
 
-        proc = subprocess.run(['screen', '-ls'], stdout=subprocess.PIPE)
+        proc = subprocess.run(['screen', '-ls'], stdout=subprocess.PIPE, shell=False)
 
         for line in proc.stdout.decode().split('\n'):
             if re.search(fr'{session}\s', line):
@@ -313,7 +313,7 @@ class Server(App):
     def send(self, command):
         '''Send command to screen session'''
         cmd = ['screen', '-S', self.session, '-X', 'stuff', f'{command}\n']
-        return subprocess.run(cmd).returncode
+        return subprocess.run(cmd, shell=False).returncode
 
     def start(self, debug=False):
         '''Start server'''
@@ -331,7 +331,7 @@ class Server(App):
                 cmd.extend(self.start_options)
 
         os.chdir(self.exec_dir)
-        subprocess.run(cmd)
+        subprocess.run(cmd, shell=False)
 
     def stop(self):
         '''Stop server'''
@@ -394,8 +394,8 @@ class SteamCMD():
     def cached_login(self, username):
         '''Check if user has a cached login'''
         cmd = [self.exe, '+login', username, '+quit']
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE,
-                              stdin=subprocess.DEVNULL, timeout=5)
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                              timeout=5, shell=False)
 
         for line in proc.stdout.decode().split('\n'):
             if 'Using cached credentials' in line:
@@ -407,7 +407,7 @@ class SteamCMD():
         success = ['Success', 'Update complete']
         error = ['ERROR', 'Failed', 'Fatal Error']
 
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE)
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, shell=False)
 
         for line in proc.stdout.decode().split('\n'):
             if any(word in line for word in success + error):
@@ -419,7 +419,7 @@ class SteamCMD():
         cmd = [self.exe, '+login', 'anonymous', '+app_info_update', '1',
                '+app_info_print', str(app_id), '+quit']
 
-        out = subprocess.run(cmd, stdout=subprocess.PIPE).stdout.decode().split('\n')
+        out = subprocess.run(cmd, stdout=subprocess.PIPE, shell=False).stdout.decode().split('\n')
         start, end = 0, 0
 
         # find the start and end of the vdf file from output
@@ -461,7 +461,7 @@ class SteamCMD():
         cmd = [self.exe, '+login', username, password, steam_guard,
                '+licenses_for_app', str(app_id), '+quit']
 
-        out = subprocess.run(cmd, stdout=subprocess.PIPE).stdout.decode()
+        out = subprocess.run(cmd, stdout=subprocess.PIPE, shell=False).stdout.decode()
 
         for line in out.split('\n'):
             if 'License packageID' in line:
@@ -477,7 +477,7 @@ class SteamCMD():
         args = [self.exe, username, password, steamguard] + args
 
         if verbose:
-            return subprocess.run(args).returncode, None
+            return subprocess.run(args, shell=False).returncode, None
         return self.filter(args)
 
     def update(self, verbose=False):

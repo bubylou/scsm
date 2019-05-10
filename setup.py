@@ -16,7 +16,11 @@ setup(
     author_email=scsm.__email__,
     packages=find_packages(exclude=['tests']),
     python_requires='>= 3.6',
-    install_requires=['click', 'ruamel.yaml', 'vdf'],
+    install_requires=[
+        'click >= 6.6',
+        'ruamel.yaml >= 0.15.75',
+        'vdf >= 2.4'
+    ],
     include_package_data=True,
     entry_points={
         "console_scripts": ['scsm=scsm.cli:main']

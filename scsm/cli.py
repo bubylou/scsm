@@ -517,6 +517,11 @@ def edit(a, editor):
     if not a.installed:
         info(a.app_name, a.app_id)
         message('Error', 'App not installed')
+    elif a.config_is_default:
+        a.copy_config()
+        a = App(a.app_id, a.app_dir)
+        click.edit(editor=editor, filename=a.config_f)
+        Index.update()
     else:
         click.edit(editor=editor, filename=a.config_f)
         Index.update()

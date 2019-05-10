@@ -35,7 +35,7 @@ def app():
 class TestApp():
     @pytest.mark.parametrize('app,app_name', [
         (APP_ID, APP_NAME),
-        (f'{APP_ID}', APP_NAME),
+        (str(APP_ID), APP_NAME),
         (APP_NAME, APP_NAME),
     ])
     def test_init(self, app, app_name):

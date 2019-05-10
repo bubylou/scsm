@@ -78,3 +78,7 @@ class Config():
         with open(Path(config_dir, 'config.yaml'), 'w') as f:
             yaml = YAML(typ='safe')
             yaml.dump(yaml.load(DEFAULTS), f)
+
+    @staticmethod
+    def remove():
+        Config.config_f.unlink()

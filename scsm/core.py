@@ -276,8 +276,8 @@ class Index():
 
 
 class Server(App):
-    def __init__(self, app, app_dir, platform=None):
-        super(Server, self).__init__(app, app_dir, None, platform)
+    def __init__(self, app, app_dir, backup_dir=None,  platform=None):
+        super(Server, self).__init__(app, app_dir, backup_dir, platform)
         self.session = f'{self.app_name}-{self.server_name}'
 
     @property

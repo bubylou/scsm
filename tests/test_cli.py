@@ -63,12 +63,12 @@ def server_stopped(app_installed):
     return server
 
 
-def test_backup_cmd(server_stopped):
+def test_backup(server_stopped):
     if server_stopped.backup_dir.exists():
         shutil.rmtree(server_stopped.backup_dir)
 
     runner = CliRunner()
-    result = runner.invoke(cli.backup_cmd, [APP_ID, '--no-compress'])
+    result = runner.invoke(cli.backup, [APP_ID, '--no-compress'])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -79,9 +79,9 @@ def test_backup_cmd(server_stopped):
     ''')
 
 
-def test_console_cmd(server_running):
+def test_console(server_running):
     runner = CliRunner()
-    result = runner.invoke(cli.console_cmd, [APP_ID], input='$\'\003\'\n')
+    result = runner.invoke(cli.console, [APP_NAME], input='$\'\003\'\n')
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -91,15 +91,15 @@ def test_console_cmd(server_running):
     ''')
 
 
-def test_edit_cmd(app_installed):
+def test_edit(app_installed):
     runner = CliRunner()
-    result = runner.invoke(cli.edit_cmd, [APP_ID, '--editor', 'more'])
+    result = runner.invoke(cli.edit, [APP_ID, '--editor', 'more'])
     assert result.exit_code == 0
 
 
-def test_install_cmd(app_removed):
+def test_install(app_removed):
     runner = CliRunner()
-    result = runner.invoke(cli.install_cmd, [APP_ID])
+    result = runner.invoke(cli.install, [APP_ID])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent(f'''\
         [ ------ ]
@@ -110,9 +110,9 @@ def test_install_cmd(app_removed):
     ''')
 
 
-def test_kill_cmd(server_running):
+def test_kill(server_running):
     runner = CliRunner()
-    result = runner.invoke(cli.kill_cmd, [APP_ID])
+    result = runner.invoke(cli.kill, [APP_NAME])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -122,9 +122,9 @@ def test_kill_cmd(server_running):
     ''')
 
 
-def test_list_cmd(app_installed):
+def test_list(app_installed):
     runner = CliRunner()
-    result = runner.invoke(cli.list_cmd, [APP_ID])
+    result = runner.invoke(cli.list, [APP_ID])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -135,15 +135,15 @@ def test_list_cmd(app_installed):
     ''')
 
 
-# def test_monitor_cmd():
+# def test_monitor():
 #     runner = CliRunner()
-#     result = runner.invoke(cli.monitor_cmd, [APP_ID], input='$\'\003\'\n')
+#     result = runner.invoke(cli.monitor, [APP_ID], input='$\'\003\'\n')
 #     assert result.exit_code == 0
 
 
-def test_remove_cmd(server_stopped):
+def test_remove(server_stopped):
     runner = CliRunner()
-    result = runner.invoke(cli.remove_cmd, [APP_ID])
+    result = runner.invoke(cli.remove, [APP_ID])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -154,9 +154,9 @@ def test_remove_cmd(server_stopped):
     ''')
 
 
-def test_restart_cmd(server_running):
+def test_restart(server_running):
     runner = CliRunner()
-    result = runner.invoke(cli.restart_cmd, [APP_ID])
+    result = runner.invoke(cli.restart, [APP_NAME])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -170,21 +170,21 @@ def test_restart_cmd(server_running):
     ''')
 
 
-def test_restore_cmd(server_stopped):
+def test_restore(server_stopped):
     server_stopped.backup_dir.mkdir(parents=True, exist_ok=True)
     if len(os.listdir(server_stopped.backup_dir)) < 1:
         server_stopped.backup(compression=None)
 
     runner = CliRunner()
-    result = runner.invoke(cli.restore_cmd, [APP_ID], input='1\n')
+    result = runner.invoke(cli.restore, [APP_ID], input='1\n')
     assert result.exit_code == 0
     assert result.output.split('\n')[-2] == textwrap.dedent('''\
         [ Status ] - Restore complete''')
 
 
-def test_send_cmd(server_running):
+def test_send(server_running):
     runner = CliRunner()
-    result = runner.invoke(cli.send_cmd, ['test', APP_ID])
+    result = runner.invoke(cli.send, ['test', APP_NAME])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -194,12 +194,12 @@ def test_send_cmd(server_running):
     ''')
 
 
-def test_setup_cmd():
+def test_setup():
     if Config.config_f.exists() and not Config.system_wide:
         Config.remove()
 
     runner = CliRunner()
-    result = runner.invoke(cli.setup_cmd, input='N\n')
+    result = runner.invoke(cli.setup, input='N\n')
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
          [ ------ ]
@@ -208,9 +208,9 @@ def test_setup_cmd():
     ''')
 
 
-def test_start_cmd(server_stopped):
+def test_start(server_stopped):
     runner = CliRunner()
-    result = runner.invoke(cli.start_cmd, [APP_ID])
+    result = runner.invoke(cli.start, [APP_NAME])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
          [ ------ ]
@@ -220,9 +220,9 @@ def test_start_cmd(server_stopped):
     ''')
 
 
-def test_status_cmd(server_running):
+def test_status(server_running):
     runner = CliRunner()
-    result = runner.invoke(cli.status_cmd, [APP_ID])
+    result = runner.invoke(cli.status, [APP_NAME])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -231,9 +231,9 @@ def test_status_cmd(server_running):
     ''')
 
 
-def test_stop_cmd(server_running):
+def test_stop(server_running):
     runner = CliRunner()
-    result = runner.invoke(cli.stop_cmd, [APP_ID])
+    result = runner.invoke(cli.stop, [APP_NAME])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -243,9 +243,9 @@ def test_stop_cmd(server_running):
     ''')
 
 
-def test_update_cmd(app_installed):
+def test_update(app_installed):
     runner = CliRunner()
-    result = runner.invoke(cli.update_cmd, [APP_ID])
+    result = runner.invoke(cli.update, [APP_ID])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]

@@ -13,12 +13,6 @@ import click
 from .config import Config
 from .core import App, Index, Server, SteamCMD
 
-APP_OPTIONS = [
-    click.option('-f', '--force', is_flag=True, help='Run command even if running'),
-    click.option('-r', '--restart', 'arg', flag_value='restart', help='Restart during command'),
-    click.option('-i', '--start', 'arg', flag_value='start', help='Start after command'),
-    click.option('-s', '--stop', 'arg', flag_value='stop', help='Stop before command')
-]
 
 LOGIN_OPTIONS = [
     click.option('-u', '--username', default=Config.username, help='Steam username'),
@@ -46,7 +40,7 @@ def main(ctx):
         if not Config.config_f.exists():
             click.echo('[ ------ ]')
             message('Error', 'No config file found')
-            ctx.forward(setup_cmd)
+            ctx.forward(setup)
         Index.update()
 
     if ctx.invoked_subcommand in ['console', 'kill', 'monitor', 'restart',
@@ -62,12 +56,12 @@ def main(ctx):
             sys.exit(1)
 
 
-@main.command(name='backup')
+@main.command()
 @click.argument('apps', nargs=-1)
-@add_options(APP_OPTIONS)
 @click.option('-c', '--compression', default=Config.compression, help='Compression method')
+@click.option('-f', '--force', is_flag=True, help='Run command even if running')
 @click.option('-n', '--no-compress', is_flag=True, help='No compression')
-def backup_cmd(apps, arg, compression, no_compress, force):
+def backup(apps, compression, no_compress, force):
     '''Backup app'''
 
     if compression and compression not in ['bz2', 'gz', 'xz']:
@@ -77,37 +71,79 @@ def backup_cmd(apps, arg, compression, no_compress, force):
             compression = None
 
         for app in app_special_names(apps):
-            backup(app, arg, compression, force)
+            a = app_wrapper(app)
+            info(a.app_name, a.app_id)
+
+            if not a.installed:
+                message('Error', 'App not installed')
+            elif not force and a.running:
+                message('Error', 'Stop server before backup')
+            else:
+                a.backup_dir.mkdir(parents=True, exist_ok=True)
+                backups = os.listdir(a.backup_dir)
+                length = len(backups)
+
+                if Config.max_backups != 0 and length >= Config.max_backups:
+                    message('Status', 'Max backups reached')
+                    message('Status', 'Removing old backups')
+
+                    for backup in backups[0:length - Config.max_backups + 1]:
+                        Path(a.backup_dir, backup).unlink()
+
+                message('Status', 'Backup started')
+                a.backup(compression)
+                message('Status', 'Backup complete')
 
 
-@main.command(name='console')
+@main.command()
 @click.argument('apps', nargs=-1)
-def console_cmd(apps):
+def console(apps):
     '''Attach to server session'''
 
     for app in app_special_names(apps):
-        console(app)
+        s = server_wrapper(app)
+        info(s.server_name)
+
+        if not s.installed:
+            message('Error', 'App not installed')
+        elif not s.running:
+            message('Error', 'Stopped')
+        else:
+            message('Status', 'Attaching to session')
+            s.console()
+            message('Status', 'Disconnected from session')
 
 
-@main.command(name='edit')
+@main.command()
 @click.argument('apps', nargs=-1)
 @click.option('-e', '--editor', help='Text editor')
-def edit_cmd(apps, editor):
+def edit(apps, editor):
     '''Edit config files'''
 
     if apps == ('config',):
         click.edit(editor=editor, filename=Config.config_f)
     else:
         for app in app_special_names(apps):
-            edit(app, editor)
+            a = app_wrapper(app)
+
+            if not a.installed:
+                info(a.app_name, a.app_id)
+                message('Error', 'App not installed')
+            elif a.config_is_default:
+                a.copy_config()
+                a = App(a.app_id, a.app_dir)
+                click.edit(editor=editor, filename=a.config_f)
+                Index.update()
+            else:
+                click.edit(editor=editor, filename=a.config_f)
+                Index.update()
 
 
-@main.command(name='install')
+@main.command()
 @click.argument('apps', nargs=-1)
 @add_options(LOGIN_OPTIONS)
-@click.option('-i', '--start', 'arg', flag_value='start', help='Start after command')
 @click.pass_context
-def install_cmd(ctx, apps, arg, username, password, steam_guard, verbose):
+def install(ctx, apps, username, password, steam_guard, verbose):
     '''Install app'''
 
     if apps == ('steamcmd',):
@@ -124,21 +160,31 @@ def install_cmd(ctx, apps, arg, username, password, steam_guard, verbose):
         else:
             steamcmd_install(verbose)
     else:
-        ctx.forward(update_cmd)
+        ctx.forward(update)
 
 
-@main.command(name='kill')
+@main.command()
 @click.argument('apps', nargs=-1)
-def kill_cmd(apps):
+def kill(apps):
     '''Kill server'''
 
     for app in app_special_names(apps):
-        kill(app)
+        s = server_wrapper(app)
+        info(s.server_name)
+
+        if not s.installed:
+            message('Error', 'App not installed')
+        elif not s.running:
+            message('Error', 'Stopped')
+        else:
+            message('Status', 'Killing')
+            s.kill()
+            message('Status', 'Stopped')
 
 
-@main.command(name='list')
+@main.command()
 @click.argument('apps', nargs=-1)
-def list_cmd(apps):
+def list(apps):
     '''List installed or all installable apps'''
 
     arg = None
@@ -149,14 +195,33 @@ def list_cmd(apps):
         arg = 'backups'
 
     for app in app_special_names(apps):
-        _list(app, arg)
+        a = app_wrapper(app)
+
+        click.echo('[ ------ ]')
+        message('F-Name', a.full_name)
+        message('Name', a.app_name)
+        message('App ID', a.app_id)
+
+        if a.installed:
+            message('Status', 'Installed')
+        else:
+            message('Status', 'Not installed')
+
+        if arg == 'backups':
+            message('Status', f'Backups (Max {Config.max_backups})')
+
+            backups = os.listdir(a.backup_dir)
+            backups.sort(reverse=True)
+
+            for i, backup in enumerate(backups):
+                message(i + 1, backup)
 
 
-@main.command(name='monitor')
+@main.command()
 @click.argument('apps', nargs=-1)
 @click.option('-e', '--email', is_flag=True, help='Email')
 @click.option('-r', '--restart', is_flag=True, help='Restart if stopped')
-def monitor_cmd(apps, email, restart):
+def monitor(apps, email, restart):
     '''Monitor server status'''
 
     sessions = {}
@@ -228,11 +293,10 @@ def monitor_cmd(apps, email, restart):
         sleep(1)
 
 
-@main.command(name='remove')
+@main.command()
 @click.argument('apps', nargs=-1)
 @click.option('-f', '--force', is_flag=True, help='Run command even if running')
-@click.option('-s', '--stop', 'arg', flag_value='stop', help='Stop before command')
-def remove_cmd(apps, arg, force):
+def remove(apps, force):
     '''Remove app'''
 
     if apps == ('steamcmd',):
@@ -245,43 +309,93 @@ def remove_cmd(apps, arg, force):
 
     else:
         for app in app_special_names(apps):
-            remove(app, arg, force)
+            a = app_wrapper(app)
+            info(a.app_name, a.app_id)
+
+            if not a.installed:
+                message('Error', 'App not installed')
+            elif not force and a.running:
+                message('Error', 'Stop server before validating')
+            else:
+                message('Status', 'Removing')
+                a.remove()
+                message('Status', 'Remove complete')
 
 
-@main.command(name='restart')
+@main.command()
 @click.argument('apps', nargs=-1)
 @click.option('-w', '--wait-time', type=int, default=Config.wait_time, help='Wait time')
-def restart_cmd(apps, wait_time):
+@click.pass_context
+def restart(ctx, apps, wait_time):
     '''Restart server'''
 
     for app in app_special_names(apps):
-        stop(app, wait_time)
-        start(app, debug=False, verbose=False)
+        ctx.invoke(stop, apps=[app], wait_time=wait_time)
+        ctx.invoke(start, apps=[app], debug=False, verbose=False)
 
 
-@main.command(name='restore')
+@main.command()
 @click.argument('apps', nargs=-1)
-@add_options(APP_OPTIONS)
-def restore_cmd(apps, arg, force):
+@click.option('-f', '--force', is_flag=True, help='Run command even if running')
+def restore(apps, force):
     '''Restore app from backup'''
 
     for app in app_special_names(apps):
-        restore(app, arg, force)
+        a = app_wrapper(app)
+        info(a.app_name, a.app_id)
+
+        if not a.backup_dir.exists() or not os.listdir(a.backup_dir):
+            message('Error', 'No backups found')
+        elif not force and a.running:
+            message('Error', 'Stop server before restoring')
+        else:
+            backups = os.listdir(a.backup_dir)
+            length = len(backups)
+
+            while length > 1:
+                message('Status', 'Backups')
+                for i, backup in enumerate(backups):
+                    message(i + 1, backup)
+                answer = int(input(f'[ {click.style("Status", "green")} ] - Choose one: '))
+
+                if answer > length or answer < 1:
+                    message('Error', 'Invalid selection')
+                    click.echo('[ ------ ]')
+                else:
+                    backup = backups[answer - 1]
+                    break
+            else:
+                backup = backups[0]
+
+            a.app_dir.mkdir(parents=True, exist_ok=True)
+            message('Status', 'Restoring')
+            a.restore(backup)
+            message('Status', 'Restore complete')
 
 
-@main.command(name='send')
+@main.command()
 @click.argument('command')
 @click.argument('apps', nargs=-1)
-def send_cmd(apps, command):
+def send(apps, command):
     '''Send command to server'''
 
     for app in app_special_names(apps):
-        send(app, command)
+        s = server_wrapper(app)
+        info(s.server_name)
+
+        if not s.installed:
+            message('Error', 'App not installed')
+        elif not s.running:
+            message('Error', 'Stopped')
+        else:
+            message('Status', 'Command sent')
+            s.send(command)
+            message('Status', 'Command finished')
 
 
-@main.command(name='setup')
+@main.command()
 @click.option('-s', '--system-wide', is_flag=True, default=False, help='System wide config')
-def setup_cmd(system_wide):
+def setup(system_wide):
     '''Setup SteamCMD and config files'''
 
     click.echo('[ ------ ]')
@@ -307,45 +421,87 @@ def setup_cmd(system_wide):
         d.mkdir(parents=True, exist_ok=True)
 
 
-@main.command(name='start')
+@main.command()
 @click.argument('apps', nargs=-1)
 @click.option('-d', '--debug', is_flag=True, help='Debug mode')
 @click.option('-v', '--verbose', is_flag=True, default=Config.verbose, help='Verbose mode')
-def start_cmd(apps, debug, verbose):
+def start(apps, debug, verbose):
     '''Start server'''
 
     for app in app_special_names(apps):
-        start(app, debug, verbose)
+        s = server_wrapper(app)
+        info(s.server_name)
+
+        if not s.installed:
+            message('Error', 'App not installed')
+        elif s.running:
+            message('Error', 'Already running')
+        else:
+            message('Status', 'Starting')
+            s.start(debug)
+            message('Status', 'Started')
+
+            if verbose and not debug:
+                sleep(1)
+                s.console()
 
 
-@main.command(name='status')
+@main.command()
 @click.argument('apps', nargs=-1)
-def status_cmd(apps):
+def status(apps):
     '''Status server'''
 
     for app in app_special_names(apps):
-        status(app)
+        s = server_wrapper(app)
+        info(s.server_name)
+
+        if not s.installed:
+            message('Error', 'App not installed')
+        elif s.running:
+            message('Status', 'Running')
+        elif not s.running:
+            message('Status', 'Stopped')
 
 
-@main.command(name='stop')
+@main.command()
 @click.argument('apps', nargs=-1)
 @click.option('-w', '--wait-time', type=int, default=Config.wait_time, help='Wait time')
-def stop_cmd(apps, wait_time):
+def stop(apps, wait_time):
     '''Stop server'''
 
     for app in app_special_names(apps):
-        stop(app, wait_time)
+        s = server_wrapper(app)
+        info(s.server_name)
+
+        if not s.installed:
+            message('Error', 'App not installed')
+        elif not s.running:
+            message('Error', 'Stopped')
+        else:
+            message('Status', 'Stopping')
+            s.stop()
+
+            for i in range(int(wait_time)):
+                if not s.running:
+                    break
+                sleep(1)
+            else:
+                message('Error', f'Waited {wait_time} seconds')
+                message('Error', 'Killing')
+                s.kill()
+
+            message('Status', 'Stopped')
 
 
-@main.command(name='update')
+@main.command()
 @click.argument('apps', nargs=-1)
-@add_options(APP_OPTIONS)
 @add_options(LOGIN_OPTIONS)
 @click.option('-c', '--check-only', is_flag=True, help='Check for an update only')
+@click.option('-f', '--force', is_flag=True, help='Run command even if running')
 @click.option('-n', '--no-check', is_flag=True, help='Don\'t check for an update')
 @click.option('-vv', '--validate', is_flag=True, default=False, help='Validate after update')
-def update_cmd(apps, arg, username, password, steam_guard,
-               check_only, no_check, force, validate, verbose):
+def update(apps, username, password, steam_guard,
+           check_only, no_check, force, validate, verbose):
     '''Update app'''
 
     if username != 'anonymous' and not verbose:
@@ -369,79 +525,84 @@ def update_cmd(apps, arg, username, password, steam_guard,
         password = steam_guard = ''
 
     for app in app_special_names(apps):
-        update(app, arg, username, password, steam_guard,
-               check_only, no_check, force, validate, verbose)
+        a = app_wrapper(app)
+        steamcmd_check()
+        info(a.app_name, a.app_id)
 
+        if not force and a.running:
+            message('Error', 'Stop server before update')
+        elif not a.installed:
+            message('Status', 'Installing')
+            exit_code, text = a.update(username, password, steam_guard,
+                                       validate, verbose)
 
-def run(func):
-    def wrapper(a, arg, *args, **kwargs):
-        stopped = []
-
-        if arg in ['restart', 'stop']:
-            try:
-                server_names = Server(a.app_name, Config.app_dir).server_names
-            except FileNotFoundError:
-                pass
-            else:
-                for server_name in server_names:
-                    if Server.running_check(a.app_name, server_name):
-                        print(a.app_name, server_name)
-                        stopped.append(server_name)
-                        stop(server_name, Config.wait_time)
-        elif arg == 'start':
-            stopped = Server(a.app_name, Config.app_dir).server_names
-
-        func(a, *args, **kwargs)
-
-        if arg in ['restart', 'start']:
-            for server_name in stopped:
-                start(server_name, False, False)
-    return wrapper
-
-
-def app(func):
-    def wrapper(app, *args, **kwargs):
-        try:
-            a = App(app, Config.app_dir, Config.backup_dir)
-        except FileNotFoundError:
-            click.echo('[ ------ ]')
-
-            try:
-                int(app)
-            except ValueError:
-                message('Name', app)
-                message('Error', 'Invalid app name')
-            else:
-                message('App ID', app)
-                message('Error', 'Invalid app id')
+            if not verbose:
+                if exit_code == 0:
+                    message('Status', text)
+                else:
+                    message('Error', text)
         else:
-            func(a, *args, **kwargs)
-    return wrapper
+            if not no_check and not validate:
+                message('Status', 'Checking for updates')
+
+                if a.build_id_local >= a.build_id_steam:
+                    message('Status', 'Already up to date')
+                    return
+                else:
+                    message('Status', 'Update available')
+
+            if not check_only:
+                if validate:
+                    message('Status', 'Updating and Validating')
+                else:
+                    message('Status', 'Updating')
+
+                exit_code, text = a.update(username, password, steam_guard,
+                                           validate, verbose)
+
+                if not verbose:
+                    if exit_code == 0:
+                        message('Status', text)
+                    else:
+                        message('Error', text)
 
 
-def server(func):
-    def wrapper(app, *args, **kwargs):
+def app_wrapper(app):
+    try:
+        a = App(app, Config.app_dir, Config.backup_dir)
+    except FileNotFoundError:
+        click.echo('[ ------ ]')
+
         try:
-            s = Server(app, Config.app_dir)
-        except FileNotFoundError:
-            click.echo('[ ------ ]')
-
-            try:
-                int(app)
-            except ValueError:
-                message('Name', app)
-                message('Error', 'Invalid app or server name')
-            else:
-                message('App ID', app)
-                message('Error', 'Invalid app id')
+            int(app)
+        except ValueError:
+            message('Name', app)
+            message('Error', 'Invalid app name')
         else:
-            if s.server_name:
-                func(s, *args, **kwargs)
-            else:
-                for server_name in s.server_names:
-                    s = Server(server_name, Config.app_dir)
-                    func(s, *args, **kwargs)
-    return wrapper
+            message('App ID', app)
+            message('Error', 'Invalid app id')
+        sys.exit(1)
+    else:
+        return a
+
+
+def server_wrapper(app):
+    try:
+        s = Server(app, Config.app_dir)
+    except FileNotFoundError:
+        click.echo('[ ------ ]')
+
+        try:
+            int(app)
+        except ValueError:
+            message('Name', app)
+            message('Error', 'Invalid app or server name')
+        else:
+            message('App ID', app)
+            message('Error', 'Invalid app id')
+        sys.exit(1)
+    else:
+        return s
 
 
 def app_special_names(apps):
@@ -470,258 +631,6 @@ def app_special_names(apps):
     if apps == ('backups',):
         return Index.list(Config.backup_dir)
     return apps
-
-
-@app
-@run
-def backup(a, compression, force):
-    info(a.app_name, a.app_id)
-
-    if not a.installed:
-        message('Error', 'App not installed')
-    elif not force and a.running:
-        message('Error', 'Stop server before backup')
-    else:
-        a.backup_dir.mkdir(parents=True, exist_ok=True)
-        backups = os.listdir(a.backup_dir)
-        length = len(backups)
-
-        if Config.max_backups != 0 and length >= Config.max_backups:
-            message('Status', 'Max backups reached')
-            message('Status', 'Removing old backups')
-
-            for backup in backups[0:length - Config.max_backups + 1]:
-                Path(a.backup_dir, backup).unlink()
-
-        message('Status', 'Backup started')
-        a.backup(compression)
-        message('Status', 'Backup complete')
-
-
-@server
-def console(s):
-    info(s.server_name)
-
-    if not s.installed:
-        message('Error', 'App not installed')
-    elif not s.running:
-        message('Error', 'Stopped')
-    else:
-        message('Status', 'Attaching to session')
-        s.console()
-        message('Status', 'Disconnected from session')
-
-
-@app
-def edit(a, editor):
-    if not a.installed:
-        info(a.app_name, a.app_id)
-        message('Error', 'App not installed')
-    elif a.config_is_default:
-        a.copy_config()
-        a = App(a.app_id, a.app_dir)
-        click.edit(editor=editor, filename=a.config_f)
-        Index.update()
-    else:
-        click.edit(editor=editor, filename=a.config_f)
-        Index.update()
-
-
-@server
-def kill(s):
-    info(s.server_name)
-
-    if not s.installed:
-        message('Error', 'App not installed')
-    elif not s.running:
-        message('Error', 'Stopped')
-    else:
-        message('Status', 'Killing')
-        s.kill()
-        message('Status', 'Stopped')
-
-
-@app
-def _list(a, arg=None):
-    click.echo('[ ------ ]')
-    message('F-Name', a.full_name)
-    message('Name', a.app_name)
-    message('App ID', a.app_id)
-
-    if a.installed:
-        message('Status', 'Installed')
-    else:
-        message('Status', 'Not installed')
-
-    if arg == 'backups':
-        message('Status', f'Backups (Max {Config.max_backups})')
-
-        backups = os.listdir(a.backup_dir)
-        backups.sort(reverse=True)
-
-        for i, backup in enumerate(backups):
-            message(i + 1, backup)
-
-
-@app
-@run
-def remove(a, force):
-    info(a.app_name, a.app_id)
-
-    if not a.installed:
-        message('Error', 'App not installed')
-    elif not force and a.running:
-        message('Error', 'Stop server before validating')
-    else:
-        message('Status', 'Removing')
-        a.remove()
-        message('Status', 'Remove complete')
-
-
-@app
-@run
-def restore(a, force):
-    info(a.app_name, a.app_id)
-
-    if not a.backup_dir.exists() or not os.listdir(a.backup_dir):
-        message('Error', 'No backups found')
-    elif not force and a.running:
-        message('Error', 'Stop server before restoring')
-    else:
-        backups = os.listdir(a.backup_dir)
-        length = len(backups)
-
-        while length > 1:
-            message('Status', 'Backups')
-            for i, backup in enumerate(backups):
-                message(i + 1, backup)
-            answer = int(input(f'[ {click.style("Status", "green")} ] - Choose one: '))
-
-            if answer > length or answer < 1:
-                message('Error', 'Invalid selection')
-                click.echo('[ ------ ]')
-            else:
-                backup = backups[answer - 1]
-                break
-        else:
-            backup = backups[0]
-
-        a.app_dir.mkdir(parents=True, exist_ok=True)
-        message('Status', 'Restoring')
-        a.restore(backup)
-        message('Status', 'Restore complete')
-
-
-@server
-def send(s, command):
-    info(s.server_name)
-
-    if not s.installed:
-        message('Error', 'App not installed')
-    elif not s.running:
-        message('Error', 'Stopped')
-    else:
-        message('Status', 'Command sent')
-        s.send(command)
-        message('Status', 'Command finished')
-
-
-@server
-def start(s, debug=False, verbose=False,):
-    info(s.server_name)
-
-    if not s.installed:
-        message('Error', 'App not installed')
-    elif s.running:
-        message('Error', 'Already running')
-    else:
-        message('Status', 'Starting')
-        s.start(debug)
-        message('Status', 'Started')
-
-        if verbose and not debug:
-            sleep(1)
-            s.console()
-
-
-@server
-def status(s):
-    info(s.server_name)
-
-    if not s.installed:
-        message('Error', 'App not installed')
-    elif s.running:
-        message('Status', 'Running')
-    elif not s.running:
-        message('Status', 'Stopped')
-
-
-@server
-def stop(s, wait_time):
-    info(s.server_name)
-
-    if not s.installed:
-        message('Error', 'App not installed')
-    elif not s.running:
-        message('Error', 'Stopped')
-    else:
-        message('Status', 'Stopping')
-        s.stop()
-
-        for i in range(int(wait_time)):
-            if not s.running:
-                break
-            sleep(1)
-        else:
-            message('Error', f'Waited {wait_time} seconds')
-            message('Error', 'Killing')
-            s.kill()
-
-        message('Status', 'Stopped')
-
-
-@app
-@run
-def update(a, username, password, steam_guard, check_only, no_check, force, validate, verbose):
-    steamcmd_check()
-    info(a.app_name, a.app_id)
-
-    if not force and a.running:
-        message('Error', 'Stop server before update')
-    elif not a.installed:
-        message('Status', 'Installing')
-        exit_code, text = a.update(username, password, steam_guard,
-                                   validate, verbose)
-
-        if not verbose:
-            if exit_code == 0:
-                message('Status', text)
-            else:
-                message('Error', text)
-    else:
-        if not no_check and not validate:
-            message('Status', 'Checking for updates')
-
-            if a.build_id_local >= a.build_id_steam:
-                message('Status', 'Already up to date')
-                return
-            else:
-                message('Status', 'Update available')
-
-        if not check_only:
-            if validate:
-                message('Status', 'Updating and Validating')
-            else:
-                message('Status', 'Updating')
-
-            exit_code, text = a.update(username, password, steam_guard,
-                                       validate, verbose)
-
-            if not verbose:
-                if exit_code == 0:
-                    message('Status', text)
-                else:
-                    message('Error', text)
 
 
 def info(name, app_id=None):

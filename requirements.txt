@@ -4,8 +4,6 @@ coverage==4.5.3
 flake8==3.7.7
 pytest==4.4.2
 ruamel.yaml==0.15.94
-wheel==0.33.2
 setuptools==41.0.1
-twine==1.13.0
 tox==3.9.0
 vdf==3.1

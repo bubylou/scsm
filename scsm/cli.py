@@ -337,7 +337,8 @@ def restart(ctx, apps, wait_time):
 @main.command()
 @click.argument('apps', nargs=-1)
 @click.option('-f', '--force', is_flag=True, help='Run command even if running')
-def restore(apps, force):
+@click.option('-l', '--latest', is_flag=True, help='Select the latest backup automatically')
+def restore(apps, force, latest):
     '''Restore app from backup'''
 
     for app in app_special_names(apps):
@@ -350,9 +351,10 @@ def restore(apps, force):
             message('Error', 'Stop server before restoring')
         else:
             backups = os.listdir(a.backup_dir)
+            backups.sort(reverse=True)
             length = len(backups)
 
-            while length > 1:
+            while length > 1 and not latest:
                 message('Status', 'Backups')
                 for i, backup in enumerate(backups):
                     message(i + 1, backup)

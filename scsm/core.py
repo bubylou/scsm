@@ -411,7 +411,7 @@ class SteamCMD():
 
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, shell=False)
 
-        for line in proc.stdout.decode().split('\n'):
+        for line in reversed(proc.stdout.decode().split('\n')):
             if any(word in line for word in success + error):
                 return proc.returncode, line
         return proc.returncode, None

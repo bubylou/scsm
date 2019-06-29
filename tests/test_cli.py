@@ -2,73 +2,24 @@ import os
 import shutil
 import textwrap
 import types
-from pathlib import Path
-from time import sleep
 
 import pytest
 from click.testing import CliRunner
 
 from scsm import cli
 from scsm.config import Config
-from scsm.core import App, Server, SteamCMD
 
 
-APP_DIR = Path('~/.local/share/scsm/apps').expanduser()
-APP_ID = '232370'
-APP_ID_FAIL = '380840'
-APP_NAME = 'hl2dm'
-BACKUP_DIR = Path('~/.local/share/scsm/backups').expanduser()
+@pytest.fixture(scope='module')
+def runner():
+    return CliRunner()
 
 
-@pytest.fixture
-def app_installed():
-    steamcmd = SteamCMD()
-    if not steamcmd.installed:
-        steamcmd.install()
-        steamcmd.update()
-
-    app = App(APP_ID, APP_DIR, BACKUP_DIR)
-    if not app.installed:
-        app.update()
-    return app
-
-
-@pytest.fixture
-def app_removed(server_stopped):
-    app = App(APP_ID, APP_DIR, BACKUP_DIR)
-    if app.installed:
-        app.remove()
-    return app
-
-
-@pytest.fixture
-def server_running(app_installed):
-    server = Server(APP_NAME, APP_DIR, BACKUP_DIR)
-    if not server.running:
-        server.start()
-    return server
-
-
-@pytest.fixture
-def server_stopped(app_installed):
-    server = Server(APP_NAME, APP_DIR, BACKUP_DIR)
-    if server.running:
-        server.stop()
-        for _ in range(10):
-            if not server.running:
-                break
-            sleep(1)
-        else:
-            server.kill()
-    return server
-
-
-def test_backup(server_stopped):
+def test_backup(runner, server_stopped):
     if server_stopped.backup_dir.exists():
         shutil.rmtree(server_stopped.backup_dir)
 
-    runner = CliRunner()
-    result = runner.invoke(cli.backup, [APP_ID, '--no-compress'])
+    result = runner.invoke(cli.backup, [str(server_stopped.app_id), '--no-compress'])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -79,9 +30,8 @@ def test_backup(server_stopped):
     ''')
 
 
-def test_console(server_running):
-    runner = CliRunner()
-    result = runner.invoke(cli.console, [APP_NAME], input='$\'\003\'\n')
+def test_console(runner, server_running):
+    result = runner.invoke(cli.console, [server_running.app_name], input='$\'\003\'\n')
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -91,28 +41,25 @@ def test_console(server_running):
     ''')
 
 
-def test_edit(app_installed):
-    runner = CliRunner()
-    result = runner.invoke(cli.edit, [APP_ID, '--editor', 'more'])
+def test_edit(runner, app_installed):
+    result = runner.invoke(cli.edit, [str(app_installed.app_id), '--editor', 'more'])
     assert result.exit_code == 0
 
 
-def test_install(app_removed):
-    runner = CliRunner()
-    result = runner.invoke(cli.install, [APP_ID])
+def test_install(runner, app_removed):
+    result = runner.invoke(cli.install, [str(app_removed.app_id)])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent(f'''\
         [ ------ ]
         [ Name   ] - hl2dm
         [ App ID ] - 232370
         [ Status ] - Installing
-        [ Status ] - Success! App \'{APP_ID}\' fully installed.
+        [ Status ] - Success! App \'{app_removed.app_id}\' fully installed.
     ''')
 
 
-def test_kill(server_running):
-    runner = CliRunner()
-    result = runner.invoke(cli.kill, [APP_NAME])
+def test_kill(runner, server_running):
+    result = runner.invoke(cli.kill, [server_running.app_name])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -122,9 +69,8 @@ def test_kill(server_running):
     ''')
 
 
-def test_list(app_installed):
-    runner = CliRunner()
-    result = runner.invoke(cli.list, [APP_ID])
+def test_list(runner, app_installed):
+    result = runner.invoke(cli.list, [str(app_installed.app_id)])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -136,14 +82,12 @@ def test_list(app_installed):
 
 
 # def test_monitor():
-#     runner = CliRunner()
-#     result = runner.invoke(cli.monitor, [APP_ID], input='$\'\003\'\n')
+#     result = runner.invoke(cli.monitor, [app_id], input='$\'\003\'\n')
 #     assert result.exit_code == 0
 
 
-def test_remove(server_stopped):
-    runner = CliRunner()
-    result = runner.invoke(cli.remove, [APP_ID])
+def test_remove(runner, server_stopped):
+    result = runner.invoke(cli.remove, [str(server_stopped.app_id)])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -154,9 +98,8 @@ def test_remove(server_stopped):
     ''')
 
 
-def test_restart(server_running):
-    runner = CliRunner()
-    result = runner.invoke(cli.restart, [APP_NAME])
+def test_restart(runner, server_running):
+    result = runner.invoke(cli.restart, [server_running.app_name])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -170,21 +113,19 @@ def test_restart(server_running):
     ''')
 
 
-def test_restore(server_stopped):
+def test_restore(runner, server_stopped):
     server_stopped.backup_dir.mkdir(parents=True, exist_ok=True)
     if len(os.listdir(server_stopped.backup_dir)) < 1:
         server_stopped.backup(compression=None)
 
-    runner = CliRunner()
-    result = runner.invoke(cli.restore, [APP_ID], input='1\n')
+    result = runner.invoke(cli.restore, [str(server_stopped.app_id)], input='1\n')
     assert result.exit_code == 0
     assert result.output.split('\n')[-2] == textwrap.dedent('''\
         [ Status ] - Restore complete''')
 
 
-def test_send(server_running):
-    runner = CliRunner()
-    result = runner.invoke(cli.send, ['test', APP_NAME])
+def test_send(runner, server_running):
+    result = runner.invoke(cli.send, ['test', server_running.app_name])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -194,11 +135,10 @@ def test_send(server_running):
     ''')
 
 
-def test_setup():
+def test_setup(runner):
     if Config.config_f.exists() and not Config.system_wide:
         Config.remove()
 
-    runner = CliRunner()
     result = runner.invoke(cli.setup, input='N\n')
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
@@ -208,9 +148,8 @@ def test_setup():
     ''')
 
 
-def test_start(server_stopped):
-    runner = CliRunner()
-    result = runner.invoke(cli.start, [APP_NAME])
+def test_start(runner, server_stopped):
+    result = runner.invoke(cli.start, [server_stopped.app_name])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
          [ ------ ]
@@ -220,9 +159,8 @@ def test_start(server_stopped):
     ''')
 
 
-def test_status(server_running):
-    runner = CliRunner()
-    result = runner.invoke(cli.status, [APP_NAME])
+def test_status(runner, server_running):
+    result = runner.invoke(cli.status, [server_running.app_name])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -231,9 +169,8 @@ def test_status(server_running):
     ''')
 
 
-def test_stop(server_running):
-    runner = CliRunner()
-    result = runner.invoke(cli.stop, [APP_NAME])
+def test_stop(runner, server_running):
+    result = runner.invoke(cli.stop, [server_running.app_name])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]
@@ -243,9 +180,8 @@ def test_stop(server_running):
     ''')
 
 
-def test_update(app_installed):
-    runner = CliRunner()
-    result = runner.invoke(cli.update, [APP_ID])
+def test_update(runner, app_installed):
+    result = runner.invoke(cli.update, [str(app_installed.app_id)])
     assert result.exit_code == 0
     assert result.output == textwrap.dedent('''\
         [ ------ ]

@@ -168,7 +168,7 @@ def install(ctx, apps, username, password, steam_guard, verbose):
 def kill(apps):
     '''Kill server'''
 
-    for app in app_special_names(apps):
+    for app in app_special_names(apps, server=True):
         s = server_wrapper(app)
         info(s.server_name)
 
@@ -226,7 +226,7 @@ def monitor(apps, email, restart):
 
     sessions = {}
 
-    for app in app_special_names(apps):
+    for app in app_special_names(apps, server=True):
         try:
             s = Server(app, Config.app_dir)
         except FileNotFoundError:
@@ -329,7 +329,7 @@ def remove(apps, force):
 def restart(ctx, apps, wait_time):
     '''Restart server'''
 
-    for app in app_special_names(apps):
+    for app in app_special_names(apps, server=True):
         ctx.invoke(stop, apps=[app], wait_time=wait_time)
         ctx.invoke(start, apps=[app], debug=False, verbose=False)
 
@@ -381,7 +381,7 @@ def restore(apps, force, latest):
 def send(apps, command):
     '''Send command to server'''
 
-    for app in app_special_names(apps):
+    for app in app_special_names(apps, server=True):
         s = server_wrapper(app)
         info(s.server_name)
 
@@ -430,7 +430,7 @@ def setup(system_wide):
 def start(apps, debug, verbose):
     '''Start server'''
 
-    for app in app_special_names(apps):
+    for app in app_special_names(apps, server=True):
         s = server_wrapper(app)
         info(s.server_name)
 
@@ -453,15 +453,14 @@ def start(apps, debug, verbose):
 def status(apps):
     '''Status server'''
 
-    for app in app_special_names(apps):
+    for app in app_special_names(apps, server=True):
         s = server_wrapper(app)
         info(s.server_name)
-
         if not s.installed:
             message('Error', 'App not installed')
         elif s.running:
             message('Status', 'Running')
-        elif not s.running:
+        else:
             message('Status', 'Stopped')
 
 
@@ -471,7 +470,7 @@ def status(apps):
 def stop(apps, wait_time):
     '''Stop server'''
 
-    for app in app_special_names(apps):
+    for app in app_special_names(apps, server=True):
         s = server_wrapper(app)
         info(s.server_name)
 
@@ -607,32 +606,50 @@ def server_wrapper(app):
         return s
 
 
-def app_special_names(apps):
+def app_special_names(apps, server=False):
     if apps in [('all',), ('installed',)]:
-        return Index.list(Config.app_dir)
-    if apps in [('running',), ('stopped',)]:
-        tmp = []
-
+        if server:
+            apps = server_expand_names(Index.list(Config.app_dir))
+        else:
+            apps = Index.list(Config.app_dir)
+    elif apps in [('running',), ('stopped',)]:
+        status = apps[0]
+        apps = []
         for app in Index.list(Config.app_dir):
             s = Server(app, Config.app_dir)
 
             if s.running:
                 for server in s.server_names:
                     if Server.running_check(s.app_name, server):
-                        if apps[0] == 'running':
-                            tmp.append(server)
+                        if status == 'running':
+                            apps.append(server)
                     else:
-                        if apps[0] == 'stopped':
-                            tmp.append(server)
+                        if status == 'stopped':
+                            apps.append(server)
             else:
-                if apps[0] == 'stopped':
-                    tmp.append(app)
+                if status == 'stopped':
+                    apps.append(app)
+    elif apps == ('backups',):
+        apps = Index.list(Config.backup_dir)
+    elif server:
+        apps = server_expand_names(apps)
 
-        return tmp
+    for app in apps:
+        yield app
 
-    if apps == ('backups',):
-        return Index.list(Config.backup_dir)
-    return apps
+
+def server_expand_names(apps):
+    for app in apps:
+        try:
+            s = Server(app, Config.app_dir)
+        except FileNotFoundError:
+            yield app
+        else:
+            if s.server_name == s.app_name or app == s.app_id:
+                for server in s.server_names:
+                    yield server
+            else:
+                yield app
 
 
 def info(name, app_id=None):

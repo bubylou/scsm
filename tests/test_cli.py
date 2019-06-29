@@ -194,7 +194,7 @@ def test_update(runner, app_installed):
 
 @pytest.mark.parametrize('app,result', [
     (('all',), types.GeneratorType),
-    (('running',), list),
+    (('running',), types.GeneratorType),
     (('backups',), types.GeneratorType)
 ])
 def test_app_special_names(app, result):

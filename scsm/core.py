@@ -285,6 +285,8 @@ class Server(App):
     @property
     def running(self):
         '''Return True if app is running'''
+        if self.server_name == self.app_name:
+            return Server.running_check(self.app_name)
         return Server.running_check(self.app_name, self.server_name)
 
     def console(self):

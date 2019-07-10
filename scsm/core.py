@@ -328,11 +328,16 @@ class Server(App):
 
         cmd.extend(self.exe.split(' '))
 
-        if self.start_options:
-            if self.start_options[0].endswith('?'):
-                cmd.append(''.join(self.start_options))
-            else:
-                cmd.extend(self.start_options)
+        # unreal engine games have options that end with a ?
+        # that have to be combined into 1 long string
+        if self.start_options[0].endswith('?'):
+            for i, option in enumerate(self.start_options):
+                if option.endswith('?') and i != 0:
+                    cmd[-1] += option
+                else:
+                    cmd.append(option)
+        else:
+            cmd.extend(self.start_options)
 
         os.chdir(self.exec_dir)
         subprocess.run(cmd, shell=False)

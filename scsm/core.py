@@ -332,7 +332,7 @@ class Server(App):
         # that have to be combined into 1 long string
         if self.start_options[0].endswith('?'):
             for i, option in enumerate(self.start_options):
-                if option.endswith('?') and i != 0:
+                if i != 0 and self.start_options[i-1].endswith('?'):
                     cmd[-1] += option
                 else:
                     cmd.append(option)

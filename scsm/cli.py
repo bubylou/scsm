@@ -548,7 +548,7 @@ def update(apps, username, password, steam_guard,
 
                 if a.build_id_local >= a.build_id_steam:
                     message('Status', 'Already up to date')
-                    return
+                    continue
                 else:
                     message('Status', 'Update available')
 

@@ -421,7 +421,7 @@ class SteamCMD():
         for line in reversed(proc.stdout.decode().split('\n')):
             if any(word in line for word in success + error):
                 return proc.returncode, line
-        return proc.returncode, None
+        return proc.returncode, ''
 
     def info(self, app_id):
         ''''Return app info as dict'''
@@ -486,7 +486,7 @@ class SteamCMD():
         args = [self.exe, username, password, steamguard] + args
 
         if verbose:
-            return subprocess.run(args, shell=False).returncode, None
+            return subprocess.run(args, shell=False).returncode, ''
         return self.filter(args)
 
     def update(self, verbose=False):

@@ -330,7 +330,7 @@ class Server(App):
 
         # unreal engine games have options that end with a ?
         # that have to be combined into 1 long string
-        if self.start_options[0].endswith('?'):
+        if self.start_options and self.start_options[0].endswith('?'):
             for i, option in enumerate(self.start_options):
                 if i != 0 and self.start_options[i-1].endswith('?'):
                     cmd[-1] += option

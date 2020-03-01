@@ -5,5 +5,5 @@ flake8==3.7.9
 pytest==5.3.5
 ruamel.yaml==0.16.10
 setuptools==45.2.0
-tox==3.14.0
+tox==3.14.5
 vdf==3.2

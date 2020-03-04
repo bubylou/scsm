@@ -362,7 +362,7 @@ class SteamCMD():
                 self.exe = Path(self.directory, 'steamcmd.sh')
             else:
                 self.directory = Path(os.getenv('APPDATA'), 'scsm', 'steamcmd')
-                self.exe = Path(self.directory, 'self.exe')
+                self.exe = Path(self.directory, 'steamcmd.exe')
 
     @property
     def installed(self):

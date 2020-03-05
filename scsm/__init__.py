@@ -7,7 +7,7 @@ __title__ = 'scsm'
 __summary__ = 'SteamCMD Server Mangaer'
 __url__ = 'https://github.com/bubylou/scsm'
 
-__version__ = '0.1.9'
+__version__ = '0.1.10'
 
 __author__ = 'Nicholas Malcolm'
 __email__ = 'bubylou7@gmail.com'

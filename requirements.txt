@@ -1,7 +1,7 @@
 click==7.1.2
 codecov==2.1.7
 coverage==5.1
-flake8==3.7.9
+flake8==3.8.3
 pytest==5.3.5
 ruamel.yaml==0.16.10
 setuptools==45.2.0

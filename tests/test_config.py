@@ -2,7 +2,7 @@ from scsm.config import Config
 
 
 def test_init():
-    assert Config.verbose is False
+    assert Config.compression == 'gz'
 
 
 def test_create(system_wide=False):

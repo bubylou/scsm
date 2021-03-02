@@ -163,7 +163,7 @@ class App():
             self.copy_config()
 
     def update(self, username='anonymous', password='',
-               steam_guard='', validate=False, verbose=False):
+               steam_guard='', validate=False):
         '''Update app using steamcmd'''
         new_install = not self.app_dir.exists()
 
@@ -175,7 +175,7 @@ class App():
                                               self.beta, self.beta_password,
                                               self.app_config, self.platform,
                                               validate, username, password,
-                                              steam_guard, verbose)
+                                              steam_guard)
 
         # remove partially downloaded files from no subscription error
         if '(No subscription)' in text and new_install:
@@ -373,8 +373,7 @@ class SteamCMD():
 
     def app_update(self, app_id, app_dir, beta=None, beta_password=None,
                    config=None, platform=None, validate=False,
-                   username='anonymous', password='', steam_guard='',
-                   verbose=False):
+                   username='anonymous', password='', steam_guard='',):
         '''+app_update wrapper'''
         cmd = ['+login', username, password, steam_guard, '+force_install_dir',
                app_dir, '+app_update', str(app_id), '+quit']
@@ -398,7 +397,7 @@ class SteamCMD():
 
             cmd.insert(1, f'+@sSteamCmdForcePlatformType {platform}')
 
-        return self.run(cmd, verbose=verbose)
+        return self.run(cmd)
 
     def cached_login(self, username):
         '''Check if user has a cached login'''
@@ -410,18 +409,6 @@ class SteamCMD():
             if 'Using cached credentials' in line:
                 return True
         return False
-
-    def filter(self, cmd):
-        '''Run command and filter the output'''
-        success = ['Success', 'Update complete']
-        error = ['ERROR', 'Failed', 'Fatal Error']
-
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, shell=False)
-
-        for line in reversed(proc.stdout.decode().split('\n')):
-            if any(word in line for word in success + error):
-                return proc.returncode, line
-        return proc.returncode, ''
 
     def info(self, app_id):
         ''''Return app info as dict'''
@@ -481,14 +468,11 @@ class SteamCMD():
         '''Remove steamcmd'''
         shutil.rmtree(self.directory)
 
-    def run(self, args, username='anonymous', password='', steamguard='', verbose=False):
+    def run(self, args, username='anonymous', password='', steamguard=''):
         '''Run steamcmd with args and login'''
         args = [self.exe, username, password, steamguard] + args
+        return subprocess.run(args, shell=False).returncode, ''
 
-        if verbose:
-            return subprocess.run(args, shell=False).returncode, ''
-        return self.filter(args)
-
-    def update(self, verbose=False):
+    def update(self):
         '''Update steamcmd'''
-        return self.run(['+quit'], verbose=verbose)
+        return self.run(['+quit'])

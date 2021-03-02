@@ -30,6 +30,36 @@ def test_backup(runner, server_stopped):
     ''')
 
 
+def test_backup_bad_compression(runner, server_stopped):
+    result = runner.invoke(cli.backup, [str(server_stopped.app_id), '--compression', 'test'])
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent('''\
+        [ Error  ] - Invalid compression method
+    ''')
+
+
+def test_backup_not_installed(runner, app_removed):
+    result = runner.invoke(cli.backup, [str(app_removed.app_id), '--no-compress'])
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent('''\
+        [ ------ ]
+        [ Name   ] - hl2dm
+        [ App ID ] - 232370
+        [ Error  ] - App not installed
+    ''')
+
+
+def test_backup_running(runner, server_running):
+    result = runner.invoke(cli.backup, [str(server_running.app_id), '--no-compress'])
+    assert result.exit_code == 0
+    assert result.output == textwrap.dedent('''\
+        [ ------ ]
+        [ Name   ] - hl2dm
+        [ App ID ] - 232370
+        [ Error  ] - Stop server before backup
+    ''')
+
+
 def test_console(runner, server_running):
     result = runner.invoke(cli.console, [server_running.app_name], input='$\'\003\'\n')
     assert result.exit_code == 0

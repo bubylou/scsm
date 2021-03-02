@@ -18,7 +18,6 @@ DEFAULTS = f"""
     general:
         compression: gz
         steam_guard: true
-        verbose: false
         max_backups: 5
         wait_time: 30
     directories:
@@ -53,7 +52,6 @@ class Config():
 
     compression = data['general']['compression']
     steam_guard = data['general']['steam_guard']
-    verbose = data['general']['verbose']
     max_backups = data['general']['max_backups']
     wait_time = data['general']['wait_time']
     app_dir = Path(data['directories']['app_dir'])

@@ -18,7 +18,6 @@ LOGIN_OPTIONS = [
     click.option('-u', '--username', default=Config.username, help='Steam username'),
     click.option('-p', '--password', default=Config.password, help='Steam password'),
     click.option('-g', '--steam-guard', default='', help='Steam guard code'),
-    click.option('-v', '--verbose', is_flag=True, default=Config.verbose, help='Verbose mode')
 ]
 
 
@@ -143,7 +142,7 @@ def edit(apps, editor):
 @click.argument('apps', nargs=-1)
 @add_options(LOGIN_OPTIONS)
 @click.pass_context
-def install(ctx, apps, username, password, steam_guard, verbose):
+def install(ctx, apps, username, password, steam_guard):
     '''Install app'''
 
     if apps == ('steamcmd',):
@@ -156,9 +155,9 @@ def install(ctx, apps, username, password, steam_guard, verbose):
             else:
                 text = f'[ {click.style("Status", "green")} ] - Reinstall SteamCMD?'
                 if click.confirm(text):
-                    steamcmd_install(verbose)
+                    steamcmd_install()
         else:
-            steamcmd_install(verbose)
+            steamcmd_install()
     else:
         ctx.forward(update)
 
@@ -331,7 +330,7 @@ def restart(ctx, apps, wait_time):
 
     for app in app_special_names(apps, server=True):
         ctx.invoke(stop, apps=[app], wait_time=wait_time)
-        ctx.invoke(start, apps=[app], debug=False, verbose=False)
+        ctx.invoke(start, apps=[app], attach=False, debug=False)
 
 
 @main.command()
@@ -425,9 +424,9 @@ def setup(system_wide):
 
 @main.command()
 @click.argument('apps', nargs=-1)
+@click.option('-a', '--attach', is_flag=True, help='Attach to starting server session')
 @click.option('-d', '--debug', is_flag=True, help='Debug mode')
-@click.option('-v', '--verbose', is_flag=True, default=Config.verbose, help='Verbose mode')
-def start(apps, debug, verbose):
+def start(apps, attach, debug):
     '''Start server'''
 
     for app in app_special_names(apps, server=True):
@@ -443,7 +442,7 @@ def start(apps, debug, verbose):
             s.start(debug)
             message('Status', 'Started')
 
-            if verbose and not debug:
+            if attach and not debug:
                 sleep(1)
                 s.console()
 
@@ -502,28 +501,8 @@ def stop(apps, wait_time):
 @click.option('-n', '--no-check', is_flag=True, help='Don\'t check for an update')
 @click.option('-vv', '--validate', is_flag=True, default=False, help='Validate after update')
 def update(apps, username, password, steam_guard,
-           check_only, no_check, force, validate, verbose):
+           check_only, no_check, force, validate):
     '''Update app'''
-
-    if username != 'anonymous' and not verbose:
-        click.echo('[ ------ ]')
-        message('Status', 'Checking for cached credentials')
-
-        steamcmd = SteamCMD()
-        if not steamcmd.cached_login(username):
-            message('Status', 'Cached credentials not available')
-            message('Alert', 'Login info can be read in OS process list')
-            message('Alert', 'To avoid this use -v or --verbose')
-
-            if not password:
-                password = click.prompt('password: ', hide_input=True)
-            if not steam_guard:
-                steam_guard = click.prompt('steam guard: ',)
-        else:
-            message('Status', 'Using cached credentials')
-            password = steam_guard = ''
-    else:
-        password = steam_guard = ''
 
     for app in app_special_names(apps):
         a = app_wrapper(app)
@@ -534,14 +513,12 @@ def update(apps, username, password, steam_guard,
             message('Error', 'Stop server before update')
         elif not a.installed:
             message('Status', 'Installing')
-            exit_code, text = a.update(username, password, steam_guard,
-                                       validate, verbose)
+            exit_code, text = a.update(username, password, steam_guard, validate)
 
-            if not verbose:
-                if exit_code == 0:
-                    message('Status', text)
-                else:
-                    message('Error', text)
+            if exit_code == 0:
+                message('Status', text)
+            else:
+                message('Error', text)
         else:
             if not no_check and not validate:
                 message('Status', 'Checking for updates')
@@ -558,14 +535,12 @@ def update(apps, username, password, steam_guard,
                 else:
                     message('Status', 'Updating')
 
-                exit_code, text = a.update(username, password, steam_guard,
-                                           validate, verbose)
+                exit_code, text = a.update(username, password, steam_guard, validate)
 
-                if not verbose:
-                    if exit_code == 0:
-                        message('Status', text)
-                    else:
-                        message('Error', text)
+                if exit_code == 0:
+                    message('Status', text)
+                else:
+                    message('Error', text)
 
 
 def app_wrapper(app):
@@ -683,13 +658,13 @@ def steamcmd_check():
     if not steamcmd.installed:
         click.echo('[ ------ ]')
         message('Error', 'SteamCMD not installed')
-        steamcmd_install(verbose=False)
+        steamcmd_install()
 
     if not steamcmd.installed:
         sys.exit(1)
 
 
-def steamcmd_install(verbose):
+def steamcmd_install():
     click.echo('[ ------ ]')
     message('Status', 'SteamCMD installing')
 
@@ -698,10 +673,9 @@ def steamcmd_install(verbose):
     message('Status', 'SteamCMD installed')
 
     message('Status', 'SteamCMD updating')
-    exit_code, text = steamcmd.update(verbose)
+    exit_code, text = steamcmd.update()
 
-    if not verbose:
-        if exit_code == 0:
-            message('Status', 'SteamCMD updated')
-        else:
-            message('Error', text)
+    if exit_code == 0:
+        message('Status', 'SteamCMD updated')
+    else:
+        message('Error', text)

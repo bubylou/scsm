@@ -500,12 +500,9 @@ def stop(apps, wait_time):
 @main.command()
 @click.argument('apps', nargs=-1)
 @add_options(LOGIN_OPTIONS)
-@click.option('-c', '--check-only', is_flag=True, help='Check for an update only')
 @click.option('-f', '--force', is_flag=True, help='Run command even if running')
-@click.option('-n', '--no-check', is_flag=True, help='Don\'t check for an update')
 @click.option('-vv', '--validate', is_flag=True, default=False, help='Validate after update')
-def update(apps, username, password, steam_guard,
-           check_only, no_check, force, validate):
+def update(apps, username, password, steam_guard, force, validate):
     '''Update app'''
 
     for app in app_special_names(apps):
@@ -524,27 +521,17 @@ def update(apps, username, password, steam_guard,
             else:
                 message('Error', text)
         else:
-            if not no_check and not validate:
-                message('Status', 'Checking for updates')
+            if validate:
+                message('Status', 'Updating and Validating')
+            else:
+                message('Status', 'Updating')
 
-                if a.build_id_local >= a.build_id_steam:
-                    message('Status', 'Already up to date')
-                    continue
-                else:
-                    message('Status', 'Update available')
+            exit_code, text = a.update(username, password, steam_guard, validate)
 
-            if not check_only:
-                if validate:
-                    message('Status', 'Updating and Validating')
-                else:
-                    message('Status', 'Updating')
-
-                exit_code, text = a.update(username, password, steam_guard, validate)
-
-                if exit_code == 0:
-                    message('Status', text)
-                else:
-                    message('Error', text)
+            if exit_code == 0:
+                message('Status', text)
+            else:
+                message('Error', text)
 
 
 def app_wrapper(app):

@@ -18,6 +18,7 @@ setup(
     python_requires='>= 3.6',
     install_requires=[
         'click >= 6.6',
+        'libtmux >= 0.8.5',
         'ruamel.yaml >= 0.15.75',
         'vdf >= 2.4'
     ],

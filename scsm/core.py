@@ -321,11 +321,7 @@ class Server(App):
                     session = _session
                     break
         if session:
-            window = session.list_windows()[0]
-            pane = window.list_panes()[0]
-            shell = tmux.show_environment(name='SHELL').split('/')[-1]
-            if pane.current_command != shell:
-                return True
+            return True
         return False
 
     def send(self, command):
@@ -337,7 +333,10 @@ class Server(App):
 
     def start(self, debug=False):
         '''Start server'''
-        cmd = f'{self.exe} '
+        if self.library:
+            cmd = f'LD_LIBRARY_PATH={self.library} {self.exe} '
+        else:
+            cmd = f'{self.exe} '
 
         # unreal engine games have options that end with a ?
         # they have to be combined into 1 long string with no spaces
@@ -351,10 +350,8 @@ class Server(App):
         if debug:
             subprocess.run(cmd, shell=False)
         else:
-            self.session = self.tmux.new_session(session_name=self.session_name)
-            if self.library:
-                self.send(f'export LD_LIBRARY_PATH={self.library}')
-            self.send(cmd)
+            self.session = self.tmux.new_session(session_name=self.session_name,
+                                                 window_command=cmd)
 
     def stop(self):
         '''Stop server'''
@@ -364,9 +361,6 @@ class Server(App):
         else:
             # Send Ctrl - C to tmux session to stop server
             self.send('c-c')
-
-        # kills the tmux session only after the server stops
-        self.send('exit')
 
 
 class SteamCMD():

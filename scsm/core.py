@@ -6,9 +6,11 @@ import subprocess
 import tarfile
 from datetime import datetime
 from pathlib import Path
-from zipfile import ZipFile
+from time import sleep
 from urllib.request import urlretrieve
+from zipfile import ZipFile
 
+import libtmux
 import vdf
 from ruamel.yaml import YAML
 
@@ -280,7 +282,10 @@ class Server(App):
         super(Server, self).__init__(app, app_dir, backup_dir, platform)
         if not self.server_name:
             self.server_name = self.server_names[0]
-        self.session = f'{self.app_name}-{self.server_name}'
+
+        self.tmux = libtmux.Server()
+        self.session_name = f'{self.app_name}-{self.server_name}'
+        self.session = self.tmux.find_where({'session_name': self.session_name})
 
     @property
     def running(self):
@@ -290,57 +295,60 @@ class Server(App):
         return Server.running_check(self.app_name, self.server_name)
 
     def console(self):
-        '''Attach to screen session'''
-        cmd = ['screen', '-r', self.session]
-        return subprocess.run(cmd, shell=False).returncode
+        '''Attach to tmux session'''
+        self.session.attach_session()
 
     def kill(self):
-        '''Kill screen session'''
-        cmd = ['screen', '-S', self.session, '-X', 'quit']
-        subprocess.run(cmd, shell=False)
+        '''Kill tmux session'''
+        self.session.kill_session()
 
     @staticmethod
     def running_check(app_name, server_name=None):
         '''Check if server or app is running'''
+        session = None
+        tmux = libtmux.Server()
+
         if server_name:
-            session = f'{app_name}-{server_name}'
+            session = tmux.find_where({'session_name': f'{app_name}-{server_name}'})
         else:
-            session = f'{app_name}-.*'
-
-        proc = subprocess.run(['screen', '-ls'], stdout=subprocess.PIPE, shell=False)
-
-        for line in proc.stdout.decode().split('\n'):
-            if re.search(fr'{session}\s', line):
+            # tmux.find_where does not work with partial names
+            for _session in tmux.list_sessions():
+                if _session.name.startswith(f'{app_name}-'):
+                    session = _session
+                    break
+        if session:
+            window = session.list_windows()[0]
+            pane = window.list_panes()[0]
+            shell = tmux.show_environment(name='SHELL').split('/')[-1]
+            if pane.current_command != shell:
                 return True
         return False
 
     def send(self, command):
-        '''Send command to screen session'''
-        cmd = ['screen', '-S', self.session, '-X', 'stuff', f'{command}\n']
-        return subprocess.run(cmd, shell=False).returncode
+        '''Send command to tmux session'''
+        window = self.session.list_windows()[0]
+        pane = window.list_panes()[0]
+        # suppress_history and literal must be false for c-c to work
+        pane.send_keys(command, enter=True, suppress_history=False, literal=False, )
 
     def start(self, debug=False):
         '''Start server'''
-        if debug:
-            cmd = []
-        else:
-            cmd = ['screen', '-dmS', self.session]
-
-        cmd.extend(self.exe.split(' '))
+        cmd = f'{self.exe} '
 
         # unreal engine games have options that end with a ?
-        # that have to be combined into 1 long string
+        # they have to be combined into 1 long string with no spaces
         if self.start_options and self.start_options[0].endswith('?'):
-            for i, option in enumerate(self.start_options):
-                if i != 0 and self.start_options[i-1].endswith('?'):
-                    cmd[-1] += option
-                else:
-                    cmd.append(option)
+            cmd += ''.join(self.start_options)
         else:
-            cmd.extend(self.start_options)
+            cmd += ' '.join(self.start_options)
 
         os.chdir(self.exec_dir)
-        subprocess.run(cmd, shell=False)
+
+        if debug:
+            subprocess.run(cmd, shell=False)
+        else:
+            self.session = self.tmux.new_session(session_name=self.session_name)
+            self.send(cmd)
 
     def stop(self):
         '''Stop server'''
@@ -348,8 +356,11 @@ class Server(App):
             for command in self.stop_options:
                 self.send(command)
         else:
-            # Send Ctrl - C to screen session
-            self.send('$\'\003\'')
+            # Send Ctrl - C to tmux session to stop server
+            self.send('c-c')
+
+        # kills the tmux session only after the server stops
+        self.send('exit')
 
 
 class SteamCMD():

@@ -233,7 +233,7 @@ def monitor(apps, email, restart):
             message('Error', 'No server entry')
         else:
             if s.server_name:
-                sessions[s.session] = {}
+                sessions[s.session_name] = {}
             else:
                 for server_name in s.server_names:
                     sessions[f'{s.app_name}-{server_name}'] = {}

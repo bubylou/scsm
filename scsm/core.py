@@ -1,12 +1,10 @@
 import os
 import platform as pf
-import re
 import shutil
 import subprocess
 import tarfile
 from datetime import datetime
 from pathlib import Path
-from time import sleep
 from urllib.request import urlretrieve
 from zipfile import ZipFile
 

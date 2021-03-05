@@ -442,9 +442,13 @@ def start(apps, attach, debug):
             s.start(debug)
             message('Status', 'Started')
 
-            if attach and not debug:
-                sleep(1)
+            if attach or debug:
                 s.console()
+            if debug and s.running:
+                # kill any left open tmux debugging session
+                message('Status', 'Killing')
+                s.kill()
+                message('Status', 'Stopped')
 
 
 @main.command()

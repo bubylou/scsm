@@ -345,12 +345,14 @@ class Server(App):
         else:
             cmd += ' '.join(self.start_options)
 
-        os.chdir(self.exec_dir)
-
         if debug:
-            subprocess.run(cmd, shell=False)
+            # tmux session stays open even if server exits
+            self.session = self.tmux.new_session(session_name=self.session_name,
+                                                 start_directory=self.exec_dir)
+            self.send(cmd)
         else:
             self.session = self.tmux.new_session(session_name=self.session_name,
+                                                 start_directory=self.exec_dir,
                                                  window_command=cmd)
 
     def stop(self):

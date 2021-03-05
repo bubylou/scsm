@@ -50,14 +50,14 @@ class Config():
     else:
         data = _yaml.load(DEFAULTS)
 
-    compression = data['general']['compression']
-    steam_guard = data['general']['steam_guard']
-    max_backups = data['general']['max_backups']
-    wait_time = data['general']['wait_time']
+    compression = str(data['general']['compression'])
+    steam_guard = str(data['general']['steam_guard'])
+    max_backups = int(data['general']['max_backups'])
+    wait_time = int(data['general']['wait_time'])
     app_dir = Path(data['directories']['app_dir'])
     backup_dir = Path(data['directories']['backup_dir'])
-    username = data['steam']['username']
-    password = data['steam']['password']
+    username = str(data['steam']['username'])
+    password = str(data['steam']['password'])
 
     @staticmethod
     def create(system_wide=False):

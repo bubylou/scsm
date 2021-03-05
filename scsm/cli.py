@@ -49,9 +49,9 @@ def main(ctx):
             message('Error', 'Not supported on Windows')
             sys.exit(1)
 
-        if not shutil.which('screen'):
+        if not shutil.which('tmux'):
             click.echo('[ ------ ]')
-            message('Error', 'GNU Screen is not installed')
+            message('Error', 'Tmux is not installed')
             sys.exit(1)
 
 

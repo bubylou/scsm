@@ -287,7 +287,11 @@ class Server(App):
 
         self.tmux = libtmux.Server()
         self.session_name = f'{self.app_name}-{self.server_name}'
-        self.session = self.tmux.find_where({'session_name': self.session_name})
+
+        try:
+            self.session = self.tmux.find_where({'session_name': self.session_name})
+        except libtmux.exc.LibTmuxException:
+            self.session = None
 
     @property
     def running(self):
@@ -307,20 +311,23 @@ class Server(App):
     @staticmethod
     def running_check(app_name, server_name=None):
         '''Check if server or app is running'''
-        session = None
         tmux = libtmux.Server()
 
         if server_name:
-            session = tmux.find_where({'session_name': f'{app_name}-{server_name}'})
+            try:
+                session = tmux.find_where({'session_name': f'{app_name}-{server_name}'})
+            except libtmux.exc.LibTmuxException:
+                return False
+            else:
+                return True
         else:
             # tmux.find_where does not work with partial names
-            for _session in tmux.list_sessions():
-                if _session.name.startswith(f'{app_name}-'):
-                    session = _session
-                    break
-        if session:
-            return True
-        return False
+            try:
+                for session in tmux.list_sessions():
+                    if session.name.startswith(f'{app_name}-'):
+                        return True
+            except libtmux.exc.LibTmuxException:
+                return False
 
     def send(self, command):
         '''Send command to tmux session'''

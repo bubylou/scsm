@@ -54,12 +54,13 @@ class App():
             self.backup_dir = Path(backup_dir, str(self.app_id), self.app_name)
 
         self.beta, self.beta_password, self.app_config = None, None, None
-        try:
-            self.beta = data['beta']
-            self.beta_password = data['password']
-            self.app_config = data['app_config']
-        except KeyError:
-            pass
+        for key in data.keys():
+            if key == 'beta':
+                self.beta = data['beta']
+            elif key == 'password':
+                self.beta_password = data['password']
+            elif key == 'app_config':
+                self.app_config = data['app_config']
 
         if not platform:
             self.platform = pf.system()
@@ -76,11 +77,14 @@ class App():
                 data = data['platforms'][self.platform][self.arch]
 
             self.exe = data['exec']
+            self.exec_dir = self.app_dir
+            self.library = None
 
-            if 'directory' in data.keys():
-                self.exec_dir = Path(self.app_dir, data['directory'])
-            else:
-                self.exec_dir = self.app_dir
+            for key in data.keys():
+                if key == 'directory':
+                    self.exec_dir = Path(self.app_dir, data['directory'])
+                elif key == 'library':
+                    self.library = data['library']
 
     @property
     def build_id_local(self):
@@ -348,6 +352,8 @@ class Server(App):
             subprocess.run(cmd, shell=False)
         else:
             self.session = self.tmux.new_session(session_name=self.session_name)
+            if self.library:
+                self.send(f'export LD_LIBRARY_PATH={self.library}')
             self.send(cmd)
 
     def stop(self):

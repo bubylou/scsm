@@ -316,10 +316,11 @@ class Server(App):
         if server_name:
             try:
                 session = tmux.find_where({'session_name': f'{app_name}-{server_name}'})
+                if session:
+                    return True
+                return False
             except libtmux.exc.LibTmuxException:
                 return False
-            else:
-                return True
         else:
             # tmux.find_where does not work with partial names
             try:

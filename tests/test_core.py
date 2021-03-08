@@ -91,10 +91,15 @@ class TestServer():
         assert server_stopped.running is True
 
     def test_console(self, server):
+        # Tests error out due to not being run in a real terminal
         assert True
 
     def test_send(self, server_running):
-        assert server_running.send('test') == 0
+        server_running.send('test')
+        window = server_running.session.list_windows()[0]
+        pane = window.list_panes()[0]
+        pane_contents = '\n'.join(pane.cmd('capture-pane', '-p').stdout)
+        assert 'test' in pane_contents
 
     def test_stop(self, server_running):
         server_running.stop()
@@ -136,10 +141,6 @@ class TestSteamCMD():
     def test_cached_login(self, steamcmd_installed):
         assert steamcmd_installed.cached_login('anonymous') is False
 
-    def test_filter(self, steamcmd_installed):
-        exit_code, text = steamcmd_installed.filter(['echo', 'Success'])
-        assert exit_code == 0
-
     def test_info(self, app, steamcmd_installed):
         assert type(steamcmd_installed.info(app.app_id)) is dict
 
@@ -150,11 +151,7 @@ class TestSteamCMD():
         assert steamcmd_installed.license(380840) is False
 
     def test_run(self, steamcmd_installed):
-        exit_code, text = steamcmd_installed.run(['+quit'], verbose=False)
-        assert exit_code == 0
-
-    def test_run_verbose(self, steamcmd_installed):
-        exit_code, text = steamcmd_installed.run(['+quit'], verbose=True)
+        exit_code, text = steamcmd_installed.run(['+quit'])
         assert exit_code == 0
 
     def test_remove(self, steamcmd_installed):

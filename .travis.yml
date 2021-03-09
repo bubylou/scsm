@@ -3,12 +3,14 @@ language: python
 python:
 - '3.6'
 - '3.7'
+- '3.8'
+- '3.9'
 sudo: false
 addons:
   apt:
     packages:
-    - screen
     - lib32gcc1
+    - tmux
 install:
 - pip install -r requirements.txt
 - pip install tox-travis
@@ -23,8 +25,9 @@ notifications:
 deploy:
   provider: pypi
   user: bubylou
+  password:
+    secure: SqJr2N3mr1hyTzjiOQiWgkR2RcuBwZChHG/RyDT9ba7kIdgKPwbgGxCxTK2ebSQMZAtENqqWDNK5tr/8aKoJvSTnOYYbfDfmdhjMEB+ugQfY/oGDwtfheeCMA7IUURFSYQ9FjcrBaoqA4w2jZNVtJKvp4qo2luZ4e1DDGkWJP6LS0Iy8bUCZKQBiyOISvhJhv0q51hQ3y9wMwA3NtQ+X06mbiIp0jR9SJIC8hM75sHA1x2v3IoD5LH+7XcMGuIXW/tdv6HIcd8FMmTaGiUmI4uOWd+HQLX6Jj+z58yktTONYV1VyZWEO2JhNTxfSqSkBv6HgkCXy1Lntrddu5ODzZHD5Fdh9mhdqPciOE85ekSOquIMGvwa0QLdy/70zAv8LP9aLLdXQySvRF69ti1fGkEXV2C1XYAOVUmjCymg2ol4OQ1W9KTQck12xAj9DYydNUGjetoGUI4rTsHwb61CvXpTzVUoSFogfmyml9SaX5VQ28InOYZgx7wALoBm3CHPSQpSnv3e7X3nYt0+Q3tDPtpcYn+3dE7xNBeduD+Hs30muODBgTAwC+m048mnTA4qlLpWYWl/ZHCDgtW5mtgowcjTHYzpV1e4tfBWqkArziB0GgXJM3x+zosyWpVHW2hhjAb/MUsLvTXVJZdKCU+fHMFQJHWI7qdbMhNPWGKxPdOc=
   on:
     tags: true
     branch: master
-  password:
-    secure: SqJr2N3mr1hyTzjiOQiWgkR2RcuBwZChHG/RyDT9ba7kIdgKPwbgGxCxTK2ebSQMZAtENqqWDNK5tr/8aKoJvSTnOYYbfDfmdhjMEB+ugQfY/oGDwtfheeCMA7IUURFSYQ9FjcrBaoqA4w2jZNVtJKvp4qo2luZ4e1DDGkWJP6LS0Iy8bUCZKQBiyOISvhJhv0q51hQ3y9wMwA3NtQ+X06mbiIp0jR9SJIC8hM75sHA1x2v3IoD5LH+7XcMGuIXW/tdv6HIcd8FMmTaGiUmI4uOWd+HQLX6Jj+z58yktTONYV1VyZWEO2JhNTxfSqSkBv6HgkCXy1Lntrddu5ODzZHD5Fdh9mhdqPciOE85ekSOquIMGvwa0QLdy/70zAv8LP9aLLdXQySvRF69ti1fGkEXV2C1XYAOVUmjCymg2ol4OQ1W9KTQck12xAj9DYydNUGjetoGUI4rTsHwb61CvXpTzVUoSFogfmyml9SaX5VQ28InOYZgx7wALoBm3CHPSQpSnv3e7X3nYt0+Q3tDPtpcYn+3dE7xNBeduD+Hs30muODBgTAwC+m048mnTA4qlLpWYWl/ZHCDgtW5mtgowcjTHYzpV1e4tfBWqkArziB0GgXJM3x+zosyWpVHW2hhjAb/MUsLvTXVJZdKCU+fHMFQJHWI7qdbMhNPWGKxPdOc=
+  skip_existing: true

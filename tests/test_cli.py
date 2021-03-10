@@ -61,6 +61,7 @@ def test_backup_running(runner, server_running):
 
 
 def test_console(runner, server_running):
+    # Tests error out due to not being run in a real terminal
     assert True
 
 

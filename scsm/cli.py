@@ -513,25 +513,31 @@ def update(apps, username, password, steam_guard, force, validate):
         if not force and a.running:
             message('Error', 'Stop server before update')
         elif not a.installed:
-            message('Status', 'Installing')
-            exit_code, text = a.update(username, password, steam_guard, validate)
+            # no subscription installs leave games partially installed
+            message('Status', 'Checking for license')
+            steamcmd = SteamCMD()
+            if steamcmd.license(a.app_id, username, password, steam_guard):
+                message('Status', 'Installing')
+                exit_code = a.update(username, password, steam_guard, validate)
 
-            if exit_code == 0:
-                message('Status', text)
+                if exit_code == 0:
+                    message('Status', 'Installed')
+                else:
+                    message('Error', 'Install failed')
             else:
-                message('Error', text)
+                message('Error', 'No subscription')
         else:
             if validate:
                 message('Status', 'Updating and Validating')
             else:
                 message('Status', 'Updating')
 
-            exit_code, text = a.update(username, password, steam_guard, validate)
+            exit_code = a.update(username, password, steam_guard, validate)
 
             if exit_code == 0:
-                message('Status', text)
+                message('Status', 'Updated')
             else:
-                message('Error', text)
+                message('Error', 'Update failed')
 
 
 def app_wrapper(app):

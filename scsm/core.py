@@ -169,23 +169,15 @@ class App():
     def update(self, username='anonymous', password='',
                steam_guard='', validate=False):
         '''Update app using steamcmd'''
-        new_install = not self.app_dir.exists()
-
         if self.config_is_default:
             self.copy_config()
 
         steamcmd = SteamCMD()
-        exit_code, text = steamcmd.app_update(self.app_id, self.app_dir,
-                                              self.beta, self.beta_password,
-                                              self.app_config, self.platform,
-                                              validate, username, password,
-                                              steam_guard)
-
-        # remove partially downloaded files from no subscription error
-        if '(No subscription)' in text and new_install:
-            self.remove()
-
-        return exit_code, text
+        return steamcmd.app_update(self.app_id, self.app_dir,
+                                   self.beta, self.beta_password,
+                                   self.app_config, self.platform,
+                                   validate, username, password,
+                                   steam_guard)
 
 
 class Index():
@@ -490,7 +482,7 @@ class SteamCMD():
     def run(self, args, username='anonymous', password='', steamguard=''):
         '''Run steamcmd with args and login'''
         args = [self.exe, username, password, steamguard] + args
-        return subprocess.run(args, shell=False).returncode, ''
+        return subprocess.run(args, shell=False).returncode
 
     def update(self):
         '''Update steamcmd'''

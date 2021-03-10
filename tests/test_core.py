@@ -24,7 +24,7 @@ class TestApp():
         assert server_stopped.running is False
 
     def test_update(self, app_installed):
-        exit_code, text = app_installed.update()
+        exit_code = app_installed.update()
         assert exit_code == 0
 
     def test_build_id_local_success(self, app_installed):
@@ -128,14 +128,14 @@ class TestSteamCMD():
         assert steamcmd_removed.installed is True
 
     def test_update(self, steamcmd_installed):
-        exit_code, text = steamcmd_installed.update()
+        exit_code = steamcmd_installed.update()
         assert exit_code == 0
 
     def test_is_installed(self, steamcmd_installed):
         assert steamcmd_installed.installed is True
 
     def test_app_update(self, app, steamcmd_installed):
-        exit_code, text = steamcmd_installed.app_update(app.app_id, app.app_dir.parent)
+        exit_code = steamcmd_installed.app_update(app.app_id, app.app_dir.parent)
         assert exit_code == 0
 
     def test_cached_login(self, steamcmd_installed):
@@ -151,7 +151,7 @@ class TestSteamCMD():
         assert steamcmd_installed.license(380840) is False
 
     def test_run(self, steamcmd_installed):
-        exit_code, text = steamcmd_installed.run(['+quit'])
+        exit_code = steamcmd_installed.run(['+quit'])
         assert exit_code == 0
 
     def test_remove(self, steamcmd_installed):

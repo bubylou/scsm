@@ -6,5 +6,5 @@ libtmux==0.10.1
 pytest==6.2.4
 ruamel.yaml==0.17.10
 setuptools==57.0.0
-tox==3.23.0
+tox==3.23.1
 vdf==3.3

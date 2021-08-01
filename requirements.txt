@@ -5,6 +5,6 @@ flake8==3.9.2
 libtmux==0.10.1
 pytest==6.2.4
 ruamel.yaml==0.17.10
-setuptools==54.2.0
+setuptools==57.4.0
 tox==3.23.0
 vdf==3.3

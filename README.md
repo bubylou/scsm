@@ -1,6 +1,6 @@
 # SteamCMD Server Manager ( SCSM )
 [![PyPi version](https://img.shields.io/pypi/v/scsm.svg)](https://pypi.org/project/scsm/)
-[![Travis build status](https://travis-ci.com/bubylou/scsm.svg?branch=master)](https://travis-ci.com/bubylou/scsm)
+[![Actions Status: CI](https://github.com/bubylou/scsm/actions/workflows/tests.yml/badge.svg)](https://github.com/bubylou/scsm/actions?query=workflow)
 [![Codecov coverage](https://img.shields.io/codecov/c/github/bubylou/scsm.svg)](https://codecov.io/gh/bubylou/scsm)
 [![PyUp status](https://pyup.io/repos/github/bubylou/scsm/shield.svg)](https://pyup.io/repos/github/bubylou/scsm)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)

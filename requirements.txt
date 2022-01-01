@@ -4,7 +4,7 @@ coverage==6.2
 flake8==4.0.1
 libtmux==0.10.2
 pytest==6.2.5
-ruamel.yaml==0.17.17
+ruamel.yaml==0.17.19
 setuptools==59.4.0
 tox==3.24.4
 vdf==3.3

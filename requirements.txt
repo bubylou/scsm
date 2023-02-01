@@ -3,7 +3,7 @@ codecov==2.1.12
 coverage==7.1.0
 flake8==6.0.0
 libtmux==0.21.0
-pytest==6.2.5
+pytest==7.2.1
 ruamel.yaml==0.17.17
 setuptools==59.4.0
 tox==3.24.4

@@ -1,3 +1,0 @@
-include LICENSE
-include scsm/data/apps/*.yaml
-recursive-include tests *.py

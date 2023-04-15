@@ -18,18 +18,17 @@ Install SCSM for development:
 ```
 git clone --recurse-submodules https://github.com/bubylou/scsm.git
 cd scsm
-pip install -r requirements.txt
-pip install -e .
+poetry install
 ```
 
 Run code style checks:
 
 ```
-tox -e lint
+poetry run ruff --line-lenth 100
 ```
 
 Run tests which also does a code style check:
 
 ```
-tox
+poetry run pytest
 ```

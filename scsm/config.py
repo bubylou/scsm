@@ -1,8 +1,8 @@
 import os
+import yaml
 import platform
 from pathlib import Path
-from pkg_resources import resource_filename
-from ruamel.yaml import YAML
+import scsm
 
 
 if platform.system() != 'Windows':
@@ -31,7 +31,7 @@ DEFAULTS = f"""
 
 class Config():
     system_wide = False
-    data_dir = resource_filename(__name__, 'data')
+    data_dir = Path(scsm.__path__[0], 'data')
 
     if platform.system() != 'Windows':
         config_dir = Path('~/.config/scsm').expanduser()
@@ -41,14 +41,13 @@ class Config():
     else:
         config_dir = Path(os.getenv('APPDATA'), 'scsm')
 
-    _yaml = YAML(typ='safe')
     config_f = Path(config_dir, 'config.yaml')
 
     if config_f.exists():
         with open(config_f, 'r') as _f:
-            data = _yaml.load(_f)
+            data = yaml.safe_load(_f)
     else:
-        data = _yaml.load(DEFAULTS)
+        data = yaml.safe_load(DEFAULTS)
 
     compression = str(data['general']['compression'])
     steam_guard = str(data['general']['steam_guard'])
@@ -74,8 +73,7 @@ class Config():
         Config.config_f = Path(config_dir, 'config.yaml')
 
         with open(Path(config_dir, 'config.yaml'), 'w') as f:
-            yaml = YAML(typ='safe')
-            yaml.dump(yaml.load(DEFAULTS), f)
+            yaml.dump(yaml.safe_load(DEFAULTS), f)
 
     @staticmethod
     def remove():

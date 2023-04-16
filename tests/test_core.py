@@ -96,8 +96,7 @@ class TestServer():
 
     def test_send(self, server_running):
         server_running.send('test')
-        window = server_running.session.list_windows()[0]
-        pane = window.list_panes()[0]
+        pane = server_running.session.windows[0].panes[0]
         pane_contents = '\n'.join(pane.cmd('capture-pane', '-p').stdout)
         assert 'test' in pane_contents
 

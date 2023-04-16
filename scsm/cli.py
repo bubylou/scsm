@@ -670,9 +670,9 @@ def steamcmd_install():
     message('Status', 'SteamCMD installed')
 
     message('Status', 'SteamCMD updating')
-    exit_code, text = steamcmd.update()
+    exit_code = steamcmd.update()
 
     if exit_code == 0:
         message('Status', 'SteamCMD updated')
     else:
-        message('Error', text)
+        message('Error', 'SteamCMD update failed')

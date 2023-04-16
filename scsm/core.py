@@ -10,7 +10,7 @@ from zipfile import ZipFile
 
 import libtmux
 import vdf
-from ruamel.yaml import YAML
+import yaml
 
 from .config import Config
 
@@ -31,8 +31,7 @@ class App():
             self.config_is_default = False
 
         with open(self.config_f, 'r') as f:
-            yaml = YAML(typ='safe')
-            data = yaml.load(f)
+            data = yaml.safe_load(f)
 
         self.app_names = list(data['apps'].keys())
         if not self.app_name:
@@ -162,24 +161,18 @@ class App():
         '''Restore specified backup file'''
         with tarfile.open(Path(self.backup_dir, backup)) as tar:
             def is_within_directory(directory, target):
-                
                 abs_directory = os.path.abspath(directory)
                 abs_target = os.path.abspath(target)
-            
                 prefix = os.path.commonprefix([abs_directory, abs_target])
-                
                 return prefix == abs_directory
-            
+
             def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-            
                 for member in tar.getmembers():
                     member_path = os.path.join(path, member.name)
                     if not is_within_directory(path, member_path):
                         raise Exception("Attempted Path Traversal in Tar File")
-            
                 tar.extractall(path, members, numeric_owner=numeric_owner) 
-                
-            
+
             safe_extract(tar, self.app_dir.parent)
 
         if self.config_is_default:
@@ -219,8 +212,7 @@ class Index():
             return
 
         with open(Index.f, 'r') as f:
-            yaml = YAML(typ='safe')
-            data = yaml.load(f)
+            data = yaml.safe_load(f)
 
         for app_id in directory.iterdir():
             if len(data[int(app_id.name)].keys()) > 1:
@@ -233,8 +225,7 @@ class Index():
     def list_all():
         '''Return generator of all app_id's in index'''
         with open(Index.f, 'r') as f:
-            yaml = YAML(typ='safe')
-            data = yaml.load(f)
+            data = yaml.safe_load(f)
 
         for app_id in data.keys():
             app_names = data[app_id].keys()
@@ -254,8 +245,7 @@ class Index():
             pass
 
         with open(Index.f, 'r') as f:
-            yaml = YAML(typ='safe')
-            data = yaml.load(f)
+            data = yaml.safe_load(f)
 
         if app in data.keys():
             return app, None, None
@@ -278,15 +268,13 @@ class Index():
             for f in d.iterdir():
                 if Path(f).suffix == '.yaml':
                     with open(Path(d, f), 'r') as config_f:
-                        yaml = YAML(typ='safe')
-                        data = yaml.load(config_f)
+                        data = yaml.safe_load(config_f)
 
                     for app in data['apps'].keys():
                         app_index[data['app_id']] = {app: list(data['apps'][app]
                                                                ['servers'].keys())}
 
         with open(Index.f, 'w') as f:
-            yaml = YAML(typ='safe')
             yaml.dump(app_index, f)
 
 
@@ -300,8 +288,8 @@ class Server(App):
         self.session_name = f'{self.app_name}-{self.server_name}'
 
         try:
-            self.session = self.tmux.find_where({'session_name': self.session_name})
-        except libtmux.exc.LibTmuxException:
+            self.session = self.tmux.sessions.filter(session_name=self.session_name)[0]
+        except IndexError:
             self.session = None
 
     @property
@@ -326,27 +314,23 @@ class Server(App):
 
         if server_name:
             try:
-                session = tmux.find_where({'session_name': f'{app_name}-{server_name}'})
+                session = tmux.sessions.filter(f'{app_name}-{server_name}')[0]
                 if session:
                     return True
                 return False
-            except libtmux.exc.LibTmuxException:
+            except IndexError:
                 return False
         else:
-            # tmux.find_where does not work with partial names
-            try:
-                for session in tmux.list_sessions():
-                    if session.name.startswith(f'{app_name}-'):
-                        return True
-            except libtmux.exc.LibTmuxException:
-                return False
+            for session in tmux.sessions:
+                if session.name.startswith(f'{app_name}-'):
+                    return True
+            return False
 
     def send(self, command):
         '''Send command to tmux session'''
-        window = self.session.list_windows()[0]
-        pane = window.list_panes()[0]
+        pane = self.session.windows[0].panes[0]
         # suppress_history and literal must be false for c-c to work
-        pane.send_keys(command, enter=True, suppress_history=False, literal=False, )
+        pane.send_keys(command, enter=True, suppress_history=False, literal=False)
 
     def start(self, debug=False):
         '''Start server'''
@@ -405,8 +389,8 @@ class SteamCMD():
                    config=None, platform=None, validate=False,
                    username='anonymous', password='', steam_guard='',):
         '''+app_update wrapper'''
-        cmd = ['+login', username, password, steam_guard, '+force_install_dir',
-               app_dir, '+app_update', str(app_id), '+quit']
+        cmd = ['+force_install_dir', app_dir, '+login', username, password,
+               steam_guard, '+app_update', str(app_id), '+quit']
 
         if config:
             cmd.insert(-3, f'+app_set_config {app_id} {config}')
@@ -478,24 +462,18 @@ class SteamCMD():
         if pf.system() != 'Windows':
             with tarfile.open(Path(self.directory, f)) as tar:
                 def is_within_directory(directory, target):
-                    
                     abs_directory = os.path.abspath(directory)
                     abs_target = os.path.abspath(target)
-                
                     prefix = os.path.commonprefix([abs_directory, abs_target])
-                    
                     return prefix == abs_directory
-                
+
                 def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-                
                     for member in tar.getmembers():
                         member_path = os.path.join(path, member.name)
                         if not is_within_directory(path, member_path):
                             raise Exception("Attempted Path Traversal in Tar File")
-                
                     tar.extractall(path, members, numeric_owner=numeric_owner) 
-                    
-                
+
                 safe_extract(tar, self.directory)
         else:
             with ZipFile(Path(self.directory, f)) as zipf:
